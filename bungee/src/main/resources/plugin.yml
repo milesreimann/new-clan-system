@@ -1,0 +1,6 @@
+name: ClanSystem
+version: 1.0
+author: Miles
+main: io.github.milesreimann.clansystem.bungee.plugin.ClanSystemPlugin
+commands:
+  clan:
