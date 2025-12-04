@@ -20,10 +20,6 @@ public interface ClanService {
 
     CompletionStage<Void> retagClan(long clanId, String newTag);
 
-    CompletionStage<Void> sendClanNotification(long clanId, String message);
-
-    CompletionStage<Void> sendClanMessage(long clanId, UUID memberUuid, String message);
-
     CompletionStage<Clan> getClanById(long clanId);
 
     CompletionStage<Clan> getClanByName(String name);
@@ -33,8 +29,6 @@ public interface ClanService {
     CompletionStage<Boolean> existsClanWithName(String name);
 
     CompletionStage<Boolean> existsClanWithTag(String tag);
-
-    CompletionStage<List<Clan>> listClans();
 
     void registerDeleteObserver(ClanDeleteObserver observer);
 }

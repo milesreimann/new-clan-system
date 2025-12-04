@@ -1,9 +1,6 @@
 package io.github.milesreimann.clansystem.api.entity;
 
-import java.time.Instant;
-import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CompletionStage;
 
 /**
  * @author Miles R.
@@ -16,11 +13,7 @@ public interface ClanRole {
 
     String getName();
 
-    CompletionStage<List<String>> getPermissions();
-
-    Optional<Long> getParentRole();
+    Optional<Long> getInheritsFromRole();
 
     Optional<Integer> getSortOrder();
-
-    boolean isOwnerRole();
 }

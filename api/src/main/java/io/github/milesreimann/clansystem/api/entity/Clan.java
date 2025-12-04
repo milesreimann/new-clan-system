@@ -14,4 +14,8 @@ public interface Clan {
     String getName();
 
     String getTag();
+
+    Long getOwnerRole();
+
+    Long getDefaultRole();
 }

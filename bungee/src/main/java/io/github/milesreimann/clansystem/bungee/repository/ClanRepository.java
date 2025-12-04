@@ -20,8 +20,12 @@ public class ClanRepository {
         owner VARCHAR(36) NOT NULL,
         name VARCHAR(255) NOT NULL COLLATE utf8mb4_general_ci,
         tag VARCHAR(255) NOT NULL COLLATE utf8mb4_general_ci,
+        owner_role_id BIGINT,
+        default_role_id BIGINT,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY(owner_role_id) REFERENCES clan_roles(id_role) ON UPDATE CASCADE ON DELETE RESTRICT,
+        FOREIGN KEY(default_role_id) REFERENCES clan_roles(id_role) ON UPDATE CASCADE
         );""";
 
     private static final String INSERT_CLAN = """
@@ -84,6 +88,18 @@ public class ClanRepository {
     private static final String SELECT_CLANS = """
         "SELECT id_clan, owner, name, tag\s
         FROM clans;
+        """;
+
+    private static final String UPDATE_OWNER_ROLE_ID = """
+        UPDATE clans\s
+        SET owner_role_id = ?\s
+        WHERE clan_id = ?;
+        """;
+
+    private static final String UPDATE_DEFAULT_ROLE_ID = """
+        UPDATE clans\s
+        SET default_role_id = ?\s
+        WHERE clan_id = ?;
         """;
 
     private final MySQLDatabase database;
@@ -152,5 +168,15 @@ public class ClanRepository {
             .thenApply(result -> result.stream()
                 .map(mapper)
                 .toList());
+    }
+
+    public CompletionStage<Boolean> updateOwnerRoleId(long clanId, long roleId) {
+        return database.update(UPDATE_OWNER_ROLE_ID, roleId, clanId)
+            .thenApply(rows -> rows == 1);
+    }
+
+    public CompletionStage<Boolean> updateDefaultRoleId(long clanId, long roleId) {
+        return database.update(UPDATE_DEFAULT_ROLE_ID, roleId, clanId)
+            .thenApply(rows -> rows == 1);
     }
 }

@@ -43,7 +43,12 @@ public class ClanPermissionServiceImpl implements ClanPermissionService {
     }
 
     @Override
-    public CompletionStage<List<ClanPermission>> listPermissions() {
+    public CompletionStage<List<ClanPermission>> listPermissionsByTypes(ClanPermissionType... types) {
+        return null;
+    }
+
+    @Override
+    public CompletionStage<List<ClanPermission>> listAllPermissions() {
         return repository.findAll();
     }
 }

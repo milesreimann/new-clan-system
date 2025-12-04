@@ -65,6 +65,14 @@ public class ClanMemberRepository {
         ) AS `exists`;
         """;
 
+    private static final String EXISTS_MEMBER_BY_UUID_AND_CLAN_ID = """
+        SELECT EXISTS (
+        SELECT 1\s
+        FROM clan_members\s
+        WHERE player = ? AND clan_id = ?\s
+        ) AS `exists`;
+        """;
+
     private final MySQLDatabase database;
     private final ClanMemberMapper mapper;
 
@@ -109,6 +117,13 @@ public class ClanMemberRepository {
 
     public CompletionStage<Boolean> existsByUuid(UUID uuid) {
         return database.query(EXISTS_MEMBER_BY_UUID, uuid.toString())
+            .thenApply(result -> result.firstOptional()
+                .map(row -> row.getOrThrow("exists", Long.class) != 0)
+                .orElse(false));
+    }
+
+    public CompletionStage<Boolean> existsByUuidAndClanId(UUID uuid, long clanId) {
+        return database.query(EXISTS_MEMBER_BY_UUID_AND_CLAN_ID, uuid.toString(), clanId)
             .thenApply(result -> result.firstOptional()
                 .map(row -> row.getOrThrow("exists", Long.class) != 0)
                 .orElse(false));

@@ -4,7 +4,6 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.github.milesreimann.clansystem.api.entity.Clan;
-import io.github.milesreimann.clansystem.api.entity.ClanMember;
 import io.github.milesreimann.clansystem.api.observer.ClanDeleteObserver;
 import io.github.milesreimann.clansystem.api.service.ClanMemberService;
 import io.github.milesreimann.clansystem.api.service.ClanRolePermissionService;
@@ -31,9 +30,11 @@ public class ClanServiceImpl implements ClanService {
     private final ClanRoleService clanRoleService;
     private final ClanMemberService clanMemberService;
     private final ClanRolePermissionService clanRolePermissionService;
+
     private final AsyncLoadingCache<Long, Optional<Clan>> clanByIdCache;
     private final Cache<String, Long> clanNameToIdCache;
     private final Cache<String, Long> clanTagToIdCache;
+
     private final List<ClanDeleteObserver> deleteObservers;
 
     public ClanServiceImpl(
@@ -77,35 +78,22 @@ public class ClanServiceImpl implements ClanService {
     @Override
     public CompletionStage<Void> deleteClan(Clan clan) {
         return clanMemberService.listMembersByClanId(clan.getId())
-            .thenCompose(clanMembers -> repository.deleteById(clan.getId())
-                .thenRun(() -> deleteObservers.forEach(observer -> observer.onClanDeleted(clan.getId())))
-                .thenCompose(_ -> sendDeleteNotification(clanMembers))
-            )
-            .thenRun(() -> invalidateClan(clan));
+            .thenRun(() -> {
+                deleteObservers.forEach(observer -> observer.onClanDeleted(clan.getId()));
+                invalidateClan(clan);
+            });
     }
 
     @Override
     public CompletionStage<Void> renameClan(long clanId, String newName) {
         return repository.updateName(clanId, newName)
-            .thenCompose(_ -> sendClanNotification(clanId, "clan name wurde geändert zu " + newName))
             .thenRun(() -> clanByIdCache.synchronous().invalidate(clanId));
     }
 
     @Override
     public CompletionStage<Void> retagClan(long clanId, String newTag) {
         return repository.updateTag(clanId, newTag)
-            .thenCompose(_ -> sendClanNotification(clanId, "clan tag wurde geändert zu " + newTag))
             .thenRun(() -> clanByIdCache.synchronous().invalidate(clanId));
-    }
-
-    @Override
-    public CompletionStage<Void> sendClanNotification(long clanId, String message) {
-        return null;
-    }
-
-    @Override
-    public CompletionStage<Void> sendClanMessage(long clanId, UUID memberUuid, String message) {
-        return null;
     }
 
     @Override
@@ -171,27 +159,22 @@ public class ClanServiceImpl implements ClanService {
     }
 
     @Override
-    public CompletionStage<List<Clan>> listClans() {
-        return repository.findAll();
-    }
-
-    @Override
     public void registerDeleteObserver(ClanDeleteObserver observer) {
         deleteObservers.add(observer);
     }
 
     private CompletionStage<Void> setupNewClan(long clanId, UUID owner) {
-        return clanRoleService.createRole(clanId, "Eigentümer", null, 0, true)
-            .thenCompose(ownerRole -> clanRolePermissionService.grantAllPermissions(ownerRole.getId())
-                .thenCompose(_ -> clanMemberService.joinClan(owner, clanId, ownerRole.getId())));
-    }
-
-    private CompletionStage<Void> sendDeleteNotification(List<ClanMember> clanMembers) {
-        CompletableFuture<?>[] notifyFutures = clanMembers.stream()
-            .map(member -> clanMemberService.notifyMember(member, "Clan wurde gelöscht").toCompletableFuture())
-            .toArray(CompletableFuture[]::new);
-
-        return CompletableFuture.allOf(notifyFutures);
+        return clanRoleService.createRole(clanId, "Eigentümer", null, 0)
+            .thenCompose(ownerRoleId -> clanRolePermissionService.grantAllPermissions(ownerRoleId)
+                .thenCompose(_ -> clanRoleService.createRole(clanId, "Mitglied", null, 1)
+                    .thenCompose(memberRoleId -> CompletableFuture.allOf(
+                        repository.updateOwnerRoleId(clanId, ownerRoleId).toCompletableFuture(),
+                        repository.updateDefaultRoleId(clanId, memberRoleId).toCompletableFuture()
+                    ))
+                    .thenApply(_ -> ownerRoleId)
+                )
+            )
+            .thenCompose(ownerRoleId -> clanMemberService.joinClan(owner, clanId, ownerRoleId));
     }
 
     private void invalidateClan(Clan clan) {

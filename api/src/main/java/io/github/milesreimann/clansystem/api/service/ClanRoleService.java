@@ -11,21 +11,21 @@ import java.util.concurrent.CompletionStage;
  * @since 29.11.2025
  */
 public interface ClanRoleService {
-    CompletionStage<ClanRole> createRole(long clanId, String name, Long parentRole, Integer sortOrder, boolean owner);
+    CompletionStage<Long> createRole(long clanId, String name, Long inheritFrom, Integer sortOrder);
 
     CompletionStage<Void> deleteRole(ClanRole role);
 
-    CompletionStage<Void> updateName(long roleId, String newName);
-
-    CompletionStage<Void> updateParentRole(long roleId, Long newParentRoleId);
-
-    CompletionStage<Void> updateSortOrder(long roleId, Integer newSortOrder);
+    CompletionStage<Void> inheritRole(long roleId, long inheritFrom);
 
     CompletionStage<ClanRole> getRoleById(long roleId);
 
-    CompletionStage<ClanRole> getOwnerRoleByClanId(long clanId);
+    CompletionStage<ClanRole> getRoleByClanIdAndName(long clanId, String name);
 
     CompletionStage<List<ClanRole>> listRolesByClanId(long clanId);
+
+    CompletionStage<List<ClanRole>> listRoleInheritanceHierarchy(long roleId);
+
+    CompletionStage<Boolean> isRoleHigher(long roleId, long targetRoleId);
 
     void registerDeleteObserver(ClanRoleDeleteObserver observer);
 }

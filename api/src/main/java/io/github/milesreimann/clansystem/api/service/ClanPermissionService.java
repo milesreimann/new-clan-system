@@ -15,5 +15,7 @@ public interface ClanPermissionService {
 
     CompletionStage<ClanPermission> getPermissionByType(ClanPermissionType type);
 
-    CompletionStage<List<ClanPermission>> listPermissions();
+    CompletionStage<List<ClanPermission>> listPermissionsByTypes(ClanPermissionType... types);
+
+    CompletionStage<List<ClanPermission>> listAllPermissions();
 }

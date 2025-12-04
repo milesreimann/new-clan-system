@@ -5,21 +5,17 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import io.github.milesreimann.clansystem.api.entity.ClanMember;
 import io.github.milesreimann.clansystem.api.observer.ClanDeleteObserver;
 import io.github.milesreimann.clansystem.api.service.ClanMemberService;
-import io.github.milesreimann.clansystem.api.service.ClanService;
 import io.github.milesreimann.clansystem.bungee.entity.ClanMemberImpl;
 import io.github.milesreimann.clansystem.bungee.listener.ClanMemberCacheInvalidationListener;
 import io.github.milesreimann.clansystem.bungee.listener.ClanMemberCacheRemovalListener;
 import io.github.milesreimann.clansystem.bungee.repository.ClanMemberRepository;
 import lombok.Getter;
-import net.md_5.bungee.api.ProxyServer;
-import net.md_5.bungee.api.connection.ProxiedPlayer;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -30,9 +26,11 @@ import java.util.concurrent.TimeUnit;
  */
 public class ClanMemberServiceImpl implements ClanMemberService {
     private final ClanMemberRepository repository;
+
     private final Map<Long, List<UUID>> clanIdToMemberUuidCache;
     private final AsyncLoadingCache<UUID, Optional<ClanMember>> memberByUuidCache;
     private final AsyncLoadingCache<Long, List<ClanMember>> membersByClanCache;
+
     @Getter
     private final ClanDeleteObserver clanDeleteObserver;
 
@@ -86,19 +84,6 @@ public class ClanMemberServiceImpl implements ClanMemberService {
     }
 
     @Override
-    public CompletionStage<Void> notifyMember(ClanMember member, String message) {
-        ProxiedPlayer memberPlayer = ProxyServer.getInstance().getPlayer(member.getUuid());
-        if (memberPlayer == null || !memberPlayer.isConnected()) {
-            return CompletableFuture.completedStage(null);
-        }
-
-        // TODO: Setting Check
-
-        memberPlayer.sendMessage(message);
-        return CompletableFuture.completedStage(null);
-    }
-
-    @Override
     public CompletionStage<Void> sendMessage(ClanMember sender, ClanMember receiver, String message) {
         return null;
     }
@@ -115,13 +100,25 @@ public class ClanMemberServiceImpl implements ClanMemberService {
     }
 
     @Override
-    public CompletionStage<Boolean> isIsInClan(UUID memberUuid) {
+    public CompletionStage<Boolean> isInClan(UUID memberUuid) {
         CompletionStage<Optional<ClanMember>> memberFuture = memberByUuidCache.getIfPresent(memberUuid);
         if (memberFuture != null) {
             return memberFuture.thenApply(Optional::isPresent);
         }
 
         return repository.existsByUuid(memberUuid);
+    }
+
+    @Override
+    public CompletionStage<Boolean> isInClan(UUID memberUuid, long clanId) {
+        CompletionStage<Optional<ClanMember>> memberFuture = memberByUuidCache.getIfPresent(memberUuid);
+        if (memberFuture != null) {
+            return memberFuture.thenApply(optional -> optional
+                .filter(member -> member.getClan() == clanId)
+                .isPresent());
+        }
+
+        return repository.existsByUuidAndClanId(memberUuid, clanId);
     }
 
     private void invalidateMember(ClanMember member) {

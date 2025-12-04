@@ -14,9 +14,11 @@ public interface ClanRolePermissionService {
 
     CompletionStage<Void> removePermission(long roleId, long permissionId);
 
-    CompletionStage<Boolean> hasPermission(long roleId, long permissionId);
+    CompletionStage<Void> grantAllPermissions(long roleId);
 
     CompletionStage<List<ClanRolePermission>> listPermissions(long roleId);
 
-    CompletionStage<Void> grantAllPermissions(long roleId);
+    CompletionStage<Boolean> hasPermission(long roleId, long permissionId);
+
+    CompletionStage<Boolean> hasAnyPermission(long roleId, long... permissionIds);
 }

@@ -3,7 +3,7 @@ package io.github.milesreimann.clansystem.bungee.command;
 import io.github.milesreimann.clansystem.api.service.ClanMemberService;
 import io.github.milesreimann.clansystem.api.service.ClanService;
 import io.github.milesreimann.clansystem.bungee.config.MainConfig;
-import lombok.RequiredArgsConstructor;
+import io.github.milesreimann.clansystem.bungee.plugin.ClanSystemPlugin;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 
 import java.util.UUID;
@@ -13,11 +13,16 @@ import java.util.concurrent.CompletableFuture;
  * @author Miles R.
  * @since 29.11.2025
  */
-@RequiredArgsConstructor
 public class ClanCreateSubCommand implements ClanSubCommand {
     private final MainConfig config;
     private final ClanService clanService;
     private final ClanMemberService clanMemberService;
+
+    public ClanCreateSubCommand(ClanSystemPlugin plugin) {
+        config = plugin.getConfig();
+        clanService = plugin.getClanService();
+        clanMemberService = plugin.getClanMemberService();
+    }
 
     @Override
     public void execute(ProxiedPlayer player, String[] args) {
@@ -38,7 +43,7 @@ public class ClanCreateSubCommand implements ClanSubCommand {
             return;
         }
 
-        clanMemberService.isIsInClan(playerUuid)
+        clanMemberService.isInClan(playerUuid)
             .thenCompose(isInClan -> {
                 if (Boolean.TRUE.equals(isInClan)) {
                     player.sendMessage("du bist bereits in einem clan");

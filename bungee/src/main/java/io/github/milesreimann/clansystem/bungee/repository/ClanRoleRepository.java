@@ -6,7 +6,6 @@ import io.github.milesreimann.clansystem.bungee.mapper.ClanRoleMapper;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
 /**
@@ -19,22 +18,35 @@ public class ClanRoleRepository {
         CREATE TABLE IF NOT EXISTS clan_roles(
         id_role BIGINT AUTO_INCREMENT PRIMARY KEY,
         clan_id BIGINT,
-        name VARCHAR(32) NOT NULL,
-        parent_role_id BIGINT DEFAULT NULL,
+        name VARCHAR(32) NOT NULL utf8mb4_general_ci,
+        inherits_from_id BIGINT DEFAULT NULL,
         sort_order INT DEFAULT 0,
-        owner BOOLEAN NOT NULL DEFAULT FALSE,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         FOREIGN KEY (clan_id) REFERENCES clans(id_clan) ON DELETE CASCADE,
-        FOREIGN KEY (parent_role_id) REFERENCES clan_roles(id_role) ON DELETE SET NULL,
+        FOREIGN KEY (inherits_from_id) REFERENCES clan_roles(id_role) ON DELETE SET NULL,
         UNIQUE (clan_id, name),
-        INDEX (clan_id)
+        INDEX (clan_id),
+        INDEX (inherits_from_id)
         );
         """;
 
+    private static final String CREATE_DELETE_TRIGGER = """
+            DROP TRIGGER IF EXISTS trg_clan_role_delete;\s
+            CREATE TRIGGER trg_clan_role_delete\s
+            BEFORE DELETE ON clan_roles\s
+            FOR EACH ROW\s
+            BEGIN\s
+                UPDATE clan_members cm\s
+                INNER JOIN clans c ON c.id_clan = cm.clan_id\s
+                SET cm.role_id = c.default_role_id\s
+                WHERE cm.role_id = OLD.id_role;\s
+            END;
+        """;
+
     private static final String INSERT_ROLE = """
-        INSERT INTO clan_roles(clan_id, name, parent_role_id, sort_order, owner)\s
-        VALUES (?, ?, ?, ?, ?);
+        INSERT INTO clan_roles(clan_id, name, inherits_from_id, sort_order)\s
+        VALUES (?, ?, ?, ?);
         """;
 
     private static final String DELETE_ROLE = """
@@ -43,71 +55,46 @@ public class ClanRoleRepository {
         WHERE id_role = ?;
         """;
 
-    private static final String UPDATE_NAME = """
-        UPDATE clan_roles\s
-        SET name = ?\s
-        WHERE id_role = ?;
-        """;
-
-    private static final String UPDATE_PARENT_ROLE = """
-        UPDATE clan_roles\s
-        SET parent_role_id = ?\s
-        WHERE id_role = ?;
-        """;
-
-    private static final String UPDATE_SORT_ORDER = """
-        UPDATE clan_roles\s
-        SET sort_order = ?\s
-        WHERE id_role = ?;
-        """;
-
     private static final String SELECT_ROLE_BY_ID = """
-        SELECT id_role, clan_id, name, parent_role_id, sort_order, owner\s
+        SELECT id_role, clan_id, name, inherits_from_id, sort_order\s
         FROM clan_roles\s
         WHERE id_role = ?;
         """;
 
     private static final String SELECT_ROLES_BY_CLAN_ID = """
-        SELECT id_role, clan_id, name, parent_role_id, sort_order, owner\s
+        SELECT id_role, clan_id, name, inherits_from_id, sort_order\s
         FROM clan_roles\s
         WHERE clan_id = NULL OR clan_id = ?;
         """;
 
-    private static final String SELECT_OWNER_ROLE_BY_CLAN_ID = """
-        SELECT id_role, clan_id, name, parent_role_id, sort_order, owner\s
-        FROM clan_roles\s
-        WHERE clan_id = ? AND owner = TRUE;
+    private static final String FIND_INHERITANCE_HIERARCHY = """
+        WITH RECURSIVE inherits_hierarchy AS (
+            SELECT id_role, clan_id, name, inherits_from_id, sort_order
+            FROM clan_roles
+            WHERE id_role = ?
+            UNION ALL
+            SELECT cr.id_role, cr.clan_id, cr.name, cr.inherits_from_id, cr.sort_order
+            FROM clan_roles cr
+            INNER JOIN inherits_hierarchy ih ON ih.inherits_from_id = cr.id_role
+        )
+        SELECT id_role, clan_id, name, inherits_from_id, sort_order
+        FROM inherits_hierarchy;
         """;
 
     private final MySQLDatabase database;
     private final ClanRoleMapper mapper;
 
-    public void createTable() {
+    public void createTableAndTrigger() {
         database.update(CREATE_TABLE).join();
+        database.update(CREATE_DELETE_TRIGGER).join();
     }
 
-    public CompletionStage<ClanRole> insert(ClanRole role) {
-        return database.insert(INSERT_ROLE, role.getClan(), role.getName(), role.getParentRole().orElse(null), role.getSortOrder().orElse(null), role.isOwnerRole())
-            .thenCompose(this::findById);
+    public CompletionStage<Long> insert(ClanRole role) {
+        return database.insert(INSERT_ROLE, role.getClan(), role.getName(), role.getInheritsFromRole().orElse(null), role.getSortOrder().orElse(null));
     }
 
     public CompletionStage<Boolean> deleteById(long id) {
         return database.update(DELETE_ROLE, id)
-            .thenApply(rows -> rows == 1);
-    }
-
-    public CompletionStage<Boolean> updateName(long roleId, String newName) {
-        return database.update(UPDATE_NAME, newName, roleId)
-            .thenApply(rows -> rows == 1);
-    }
-
-    public CompletionStage<Boolean> updateParentRole(long roleId, Long newParentRoleId) {
-        return database.update(UPDATE_PARENT_ROLE, newParentRoleId, roleId)
-            .thenApply(rows -> rows == 1);
-    }
-
-    public CompletionStage<Boolean> updateSortOrder(long roleId, int newSortOrder) {
-        return database.update(UPDATE_SORT_ORDER, newSortOrder, roleId)
             .thenApply(rows -> rows == 1);
     }
 
@@ -118,12 +105,6 @@ public class ClanRoleRepository {
                 .orElse(null));
     }
 
-    public CompletionStage<Optional<ClanRole>> findByIdOptional(long id) {
-        return database.query(SELECT_ROLE_BY_ID, id)
-            .thenApply(result -> result.firstOptional()
-                .map(mapper));
-    }
-
     public CompletionStage<List<ClanRole>> findByClanId(long clanId) {
         return database.query(SELECT_ROLES_BY_CLAN_ID, clanId)
             .thenApply(result -> result.stream()
@@ -131,10 +112,10 @@ public class ClanRoleRepository {
                 .toList());
     }
 
-    public CompletionStage<ClanRole> findByClanIdAndOwnerIsTrue(long clanId) {
-        return database.query(SELECT_OWNER_ROLE_BY_CLAN_ID, clanId)
-            .thenApply(result -> result.firstOptional()
+    public CompletionStage<List<ClanRole>> findInheritanceHierarchy(long roleId) {
+        return database.query(FIND_INHERITANCE_HIERARCHY, roleId)
+            .thenApply(result -> result.stream()
                 .map(mapper)
-                .orElse(null));
+                .toList());
     }
 }

@@ -1,9 +1,8 @@
 package io.github.milesreimann.clansystem.bungee.command;
 
 import io.github.milesreimann.clansystem.api.service.ClanMemberService;
-import io.github.milesreimann.clansystem.api.service.ClanRoleService;
 import io.github.milesreimann.clansystem.api.service.ClanService;
-import lombok.RequiredArgsConstructor;
+import io.github.milesreimann.clansystem.bungee.plugin.ClanSystemPlugin;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 
 import java.util.UUID;
@@ -13,11 +12,14 @@ import java.util.concurrent.CompletableFuture;
  * @author Miles R.
  * @since 30.11.2025
  */
-@RequiredArgsConstructor
 public class ClanDeleteSubCommand implements ClanSubCommand {
     private final ClanService clanService;
     private final ClanMemberService clanMemberService;
-    private final ClanRoleService clanRoleService;
+
+    public ClanDeleteSubCommand(ClanSystemPlugin plugin) {
+        clanService = plugin.getClanService();
+        clanMemberService = plugin.getClanMemberService();
+    }
 
     @Override
     public void execute(ProxiedPlayer player, String[] args) {
@@ -42,15 +44,13 @@ public class ClanDeleteSubCommand implements ClanSubCommand {
                             return clanMemberService.leaveClan(clanMember);
                         }
 
-                        return clanRoleService.getRoleById(clanMember.getRole())
-                            .thenCompose(clanRole -> {
-                                if (clanRole == null || !clanRole.isOwnerRole()) {
-                                    player.sendMessage("nur der owner darf das");
-                                    return CompletableFuture.completedStage(null);
-                                }
+                        if (!clan.getOwner().equals(playerUuid)) {
+                            player.sendMessage("nur der owner darf das");
+                            return CompletableFuture.completedStage(null);
+                        }
 
-                                return clanService.deleteClan(clan);
-                            });
+                        return clanService.deleteClan(clan)
+                            .thenRun(() -> player.sendMessage("clan wurde gelöscht"));
                     });
             });
     }

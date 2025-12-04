@@ -18,8 +18,7 @@ public class ClanRoleMapper implements Function<QueryRow, ClanRole> {
             row.get("clan_id", Long.class),
             row.getOrThrow("name", String.class),
             row.get("parent_role_id", Long.class),
-            row.get("sort_order", Integer.class),
-            row.getOrThrow("owner", Boolean.class)
+            row.get("sort_order", Integer.class)
         );
     }
 }

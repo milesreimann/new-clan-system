@@ -21,7 +21,9 @@ public class ClanRolePermissionRepository {
         added_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (role_id, permission_id),
         FOREIGN KEY (role_id) REFERENCES clan_roles(id_role) ON DELETE CASCADE,
-        FOREIGN KEY (permission_id) REFERENCES clan_permissions(id_permission) ON DELETE CASCADE
+        FOREIGN KEY (permission_id) REFERENCES clan_permissions(id_permission) ON DELETE CASCADE,
+        INDEX (role_id),
+        INDEX (permission_id)
         );
         """;
 
@@ -36,11 +38,21 @@ public class ClanRolePermissionRepository {
         WHERE role_id = ? AND permission_id = ?;
         """;
 
-    private static final String EXISTS_PERMISSION = """
+    private static final String HAS_PERMISSION = """
+        WITH RECURSIVE clan_role_hierarchy AS (
+            SELECT id_role, parent_role_id
+            FROM clan_roles
+            WHERE id_role = ?
+            UNION ALL
+            SELECT cr.id_role, cr.parent_role_id
+            FROM clan_roles cr
+            INNER JOIN clan_role_hierarchy crh ON crh.parent_role_id = cr.id_role
+        )
         SELECT EXISTS (
-        SELECT 1\s
-        FROM clan_role_permissions\s
-        WHERE role_id = ? AND permission_id = ?\s
+            SELECT 1
+            FROM clan_role_permissions crp
+            INNER JOIN clan_role_hierarchy crh ON crh.id_role = crp.role_id
+            WHERE crp.permission_id = ?
         ) AS `exists`;
         """;
 
@@ -67,8 +79,8 @@ public class ClanRolePermissionRepository {
             .thenApply(rows -> rows == 1);
     }
 
-    public CompletionStage<Boolean> existsByRoleIdAndPermissionId(long roleId, long permissionId) {
-        return database.query(EXISTS_PERMISSION, roleId, permissionId)
+    public CompletionStage<Boolean> hasRolePermission(long roleId, long permissionId) {
+        return database.query(HAS_PERMISSION, roleId, permissionId)
             .thenApply(result -> result.firstOptional()
                 .map(row -> row.getOrThrow("exists", Long.class) != 0)
                 .orElse(false));

@@ -27,12 +27,14 @@ import java.util.concurrent.TimeUnit;
  */
 public class ClanRoleServiceImpl implements ClanRoleService {
     private final ClanRoleRepository repository;
+
     private final Map<Long, Set<Long>> clanIdToRoleIdCache;
     private final AsyncLoadingCache<Long, Optional<ClanRole>> roleByIdCache;
     private final AsyncLoadingCache<Long, List<ClanRole>> rolesByClanCache;
+
     private final List<ClanRoleDeleteObserver> deleteObservers;
     @Getter
-    private ClanDeleteObserver clanDeleteObserver;
+    private final ClanDeleteObserver clanDeleteObserver;
 
     public ClanRoleServiceImpl(ClanRoleRepository repository) {
         this.repository = repository;
@@ -68,14 +70,13 @@ public class ClanRoleServiceImpl implements ClanRoleService {
     }
 
     @Override
-    public CompletionStage<ClanRole> createRole(
+    public CompletionStage<Long> createRole(
         long clanId,
         String name,
-        Long parentRole,
-        Integer sortOrder,
-        boolean owner
+        Long inheritsFrom,
+        Integer sortOrder
     ) {
-        return repository.insert(new ClanRoleImpl(null, clanId, name, parentRole, sortOrder, owner));
+        return repository.insert(new ClanRoleImpl(null, clanId, name, inheritsFrom, sortOrder));
     }
 
     @Override
@@ -85,21 +86,8 @@ public class ClanRoleServiceImpl implements ClanRoleService {
     }
 
     @Override
-    public CompletionStage<Void> updateName(long roleId, String newName) {
-        return repository.updateName(roleId, newName)
-            .thenApply(_ -> null);
-    }
-
-    @Override
-    public CompletionStage<Void> updateParentRole(long roleId, Long newParentRoleId) {
-        return repository.updateParentRole(roleId, newParentRoleId)
-            .thenApply(_ -> null);
-    }
-
-    @Override
-    public CompletionStage<Void> updateSortOrder(long roleId, Integer newSortOrder) {
-        return repository.updateSortOrder(roleId, newSortOrder)
-            .thenApply(_ -> null);
+    public CompletionStage<Void> inheritRole(long roleId, long inheritFrom) {
+        return null;
     }
 
     @Override
@@ -109,13 +97,23 @@ public class ClanRoleServiceImpl implements ClanRoleService {
     }
 
     @Override
-    public CompletionStage<ClanRole> getOwnerRoleByClanId(long clanId) {
-        return repository.findByClanIdAndOwnerIsTrue(clanId);
+    public CompletionStage<ClanRole> getRoleByClanIdAndName(long clanId, String name) {
+        return null;
     }
 
     @Override
     public CompletionStage<List<ClanRole>> listRolesByClanId(long clanId) {
         return rolesByClanCache.get(clanId);
+    }
+
+    @Override
+    public CompletionStage<List<ClanRole>> listRoleInheritanceHierarchy(long roleId) {
+        return repository.findInheritanceHierarchy(roleId);
+    }
+
+    @Override
+    public CompletionStage<Boolean> isRoleHigher(long roleId, long targetRoleId) {
+        return null;
     }
 
     @Override

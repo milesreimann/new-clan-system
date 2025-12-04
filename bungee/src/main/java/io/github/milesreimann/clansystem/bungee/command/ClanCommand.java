@@ -19,11 +19,12 @@ public class ClanCommand extends Command {
 
     public ClanCommand(ClanSystemPlugin plugin) {
         super("clan");
-        subCommands.put("create", new ClanCreateSubCommand(plugin.getConfig(), plugin.getClanService(), plugin.getClanMemberService()));
-        subCommands.put("rename", new ClanRenameSubCommand(plugin.getConfig(), plugin.getClanService(), plugin.getClanMemberService()));
-        subCommands.put("retag", new ClanRetagSubCommand(plugin.getConfig(), plugin.getClanService(), plugin.getClanMemberService()));
-        subCommands.put("leave", new ClanLeaveSubCommand(plugin.getClanService(), plugin.getClanMemberService(), plugin.getClanRoleService()));
-        subCommands.put("delete", new ClanDeleteSubCommand(plugin.getClanService(), plugin.getClanMemberService(), plugin.getClanRoleService()));
+        subCommands.put("create", new ClanCreateSubCommand(plugin));
+        subCommands.put("rename", new ClanRenameSubCommand(plugin));
+        subCommands.put("retag", new ClanRetagSubCommand(plugin));
+        subCommands.put("leave", new ClanLeaveSubCommand(plugin));
+        subCommands.put("delete", new ClanDeleteSubCommand(plugin));
+        subCommands.put("kick", new ClanKickSubCommand(plugin));
     }
 
     @Override

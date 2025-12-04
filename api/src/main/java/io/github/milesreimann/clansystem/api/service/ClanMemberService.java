@@ -17,13 +17,13 @@ public interface ClanMemberService {
 
     CompletionStage<Void> updateRole(ClanMember member, long newRoleId);
 
-    CompletionStage<Void> notifyMember(ClanMember member, String message);
-
     CompletionStage<Void> sendMessage(ClanMember sender, ClanMember receiver, String message);
 
     CompletionStage<ClanMember> getMemberByUuid(UUID memberUuid);
 
     CompletionStage<List<ClanMember>> listMembersByClanId(long clanId);
 
-    CompletionStage<Boolean> isIsInClan(UUID memberUuid);
+    CompletionStage<Boolean> isInClan(UUID memberUuid);
+
+    CompletionStage<Boolean> isInClan(UUID memberUuid, long clanId);
 }
