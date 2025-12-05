@@ -5,7 +5,6 @@ import io.github.milesreimann.clansystem.bungee.database.MySQLDatabase;
 import io.github.milesreimann.clansystem.bungee.mapper.ClanMapper;
 import lombok.RequiredArgsConstructor;
 
-import java.util.List;
 import java.util.concurrent.CompletionStage;
 
 /**
@@ -23,10 +22,14 @@ public class ClanRepository {
         owner_role_id BIGINT,
         default_role_id BIGINT,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        FOREIGN KEY(owner_role_id) REFERENCES clan_roles(id_role) ON UPDATE CASCADE ON DELETE RESTRICT,
-        FOREIGN KEY(default_role_id) REFERENCES clan_roles(id_role) ON UPDATE CASCADE
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         );""";
+
+    private static final String ALTER_TABLE_ADD_FOREIGN_KEYS = """
+        ALTER TABLE clans\s
+        ADD FOREIGN KEY (owner_role_id) REFERENCES clan_roles(id_role) ON UPDATE CASCADE ON DELETE RESTRICT,\s
+        ADD FOREIGN KEY (default_role_id) REFERENCES clan_roles(id_role) ON UPDATE CASCADE;
+        """;
 
     private static final String INSERT_CLAN = """
         INSERT INTO clans(owner, name, tag)\s
@@ -52,19 +55,19 @@ public class ClanRepository {
         """;
 
     private static final String SELECT_CLAN_BY_ID = """
-        SELECT id_clan, owner, name, tag\s
+        SELECT id_clan, owner, name, tag, owner_role_id, default_role_id\s
         FROM clans\s
         WHERE id_clan = ?;
         """;
 
     private static final String SELECT_CLAN_BY_NAME = """
-        SELECT id_clan, owner, name, tag\s
+        SELECT id_clan, owner, name, tag, owner_role_id, default_role_id\s
         FROM clans\s
         WHERE name = ?;
         """;
 
     private static final String SELECT_CLAN_BY_TAG = """
-        SELECT id_clan, owner, name, tag\s
+        SELECT id_clan, owner, name, tag, owner_role_id, default_role_id\s
         FROM clans\s
         WHERE tag = ?;
         """;
@@ -85,21 +88,16 @@ public class ClanRepository {
         ) AS `exists`;
         """;
 
-    private static final String SELECT_CLANS = """
-        "SELECT id_clan, owner, name, tag\s
-        FROM clans;
-        """;
-
     private static final String UPDATE_OWNER_ROLE_ID = """
         UPDATE clans\s
         SET owner_role_id = ?\s
-        WHERE clan_id = ?;
+        WHERE id_clan = ?;
         """;
 
     private static final String UPDATE_DEFAULT_ROLE_ID = """
         UPDATE clans\s
         SET default_role_id = ?\s
-        WHERE clan_id = ?;
+        WHERE id_clan = ?;
         """;
 
     private final MySQLDatabase database;
@@ -107,6 +105,10 @@ public class ClanRepository {
 
     public void createTable() {
         database.update(CREATE_TABLE).join();
+    }
+
+    public void addRoleForeignKeys() {
+        database.update(ALTER_TABLE_ADD_FOREIGN_KEYS).join();
     }
 
     public CompletionStage<Long> insert(Clan clan) {
@@ -161,13 +163,6 @@ public class ClanRepository {
             .thenApply(result -> result.firstOptional()
                 .map(row -> row.getOrThrow("exists", Long.class) != 0)
                 .orElse(false));
-    }
-
-    public CompletionStage<List<Clan>> findAll() {
-        return database.query(SELECT_CLANS)
-            .thenApply(result -> result.stream()
-                .map(mapper)
-                .toList());
     }
 
     public CompletionStage<Boolean> updateOwnerRoleId(long clanId, long roleId) {

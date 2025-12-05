@@ -40,6 +40,10 @@ public class ClanRoleCreateSubCommand extends ClanRoleCommand {
 
                 return clanRoleService.createRole(clanId, name, null, null)
                     .thenRun(() -> player.sendMessage("rolle erstellt"));
+            })
+            .exceptionally(t -> {
+                t.printStackTrace();
+                return null;
             });
     }
 }

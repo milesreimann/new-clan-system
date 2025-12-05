@@ -38,24 +38,6 @@ public class ClanRolePermissionRepository {
         WHERE role_id = ? AND permission_id = ?;
         """;
 
-    private static final String HAS_PERMISSION = """
-        WITH RECURSIVE clan_role_hierarchy AS (
-            SELECT id_role, parent_role_id
-            FROM clan_roles
-            WHERE id_role = ?
-            UNION ALL
-            SELECT cr.id_role, cr.parent_role_id
-            FROM clan_roles cr
-            INNER JOIN clan_role_hierarchy crh ON crh.parent_role_id = cr.id_role
-        )
-        SELECT EXISTS (
-            SELECT 1
-            FROM clan_role_permissions crp
-            INNER JOIN clan_role_hierarchy crh ON crh.id_role = crp.role_id
-            WHERE crp.permission_id = ?
-        ) AS `exists`;
-        """;
-
     private static final String SELECT_PERMISSIONS_BY_ROLE_ID = """
         SELECT role_id, permission_id\s
         FROM clan_role_permissions\s
@@ -77,13 +59,6 @@ public class ClanRolePermissionRepository {
     public CompletionStage<Boolean> deleteByRoleIdAndPermissionId(long roleId, long permissionId) {
         return database.update(DELETE_PERMISSION, roleId, permissionId)
             .thenApply(rows -> rows == 1);
-    }
-
-    public CompletionStage<Boolean> hasRolePermission(long roleId, long permissionId) {
-        return database.query(HAS_PERMISSION, roleId, permissionId)
-            .thenApply(result -> result.firstOptional()
-                .map(row -> row.getOrThrow("exists", Long.class) != 0)
-                .orElse(false));
     }
 
     public CompletionStage<List<ClanRolePermission>> findByRoleId(long roleId) {

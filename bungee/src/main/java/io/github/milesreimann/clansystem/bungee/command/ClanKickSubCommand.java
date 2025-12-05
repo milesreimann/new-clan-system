@@ -68,6 +68,11 @@ public class ClanKickSubCommand implements ClanSubCommand {
                                     return CompletableFuture.completedStage(null);
                                 }
 
+                                if (targetUuid.equals(playerUuid)) {
+                                    player.sendMessage("du kannst dich nicht selbst kicken");
+                                    return CompletableFuture.completedStage(null);
+                                }
+
                                 return clanMemberService.getMemberByUuid(targetUuid)
                                     .thenCompose(targetClanMember -> {
                                         if (targetClanMember == null || !targetClanMember.getClan().equals(clanMember.getClan())) {

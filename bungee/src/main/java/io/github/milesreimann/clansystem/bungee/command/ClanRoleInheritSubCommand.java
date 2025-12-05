@@ -53,10 +53,14 @@ public class ClanRoleInheritSubCommand extends ClanRoleCommand {
                                     return CompletableFuture.completedStage(null);
                                 }
 
-                                return clanRoleService.inheritRole(clanRole.getId(), inheritFromClanRole.getId())
+                                return clanRoleService.inheritRole(clanRole, inheritFromClanRole.getId())
                                     .thenRun(() -> player.sendMessage("rolle erbt nun"));
                             });
                     });
+            })
+            .exceptionally(t -> {
+                t.printStackTrace();
+                return null;
             });
     }
 }

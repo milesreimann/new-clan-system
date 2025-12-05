@@ -5,6 +5,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import io.github.milesreimann.clansystem.api.entity.ClanRole;
 import io.github.milesreimann.clansystem.api.observer.ClanDeleteObserver;
 import io.github.milesreimann.clansystem.api.observer.ClanRoleDeleteObserver;
+import io.github.milesreimann.clansystem.api.observer.ClanRoleInheritObserver;
 import io.github.milesreimann.clansystem.api.service.ClanRoleService;
 import io.github.milesreimann.clansystem.bungee.entity.ClanRoleImpl;
 import io.github.milesreimann.clansystem.bungee.listener.ClanRoleCacheInvalidationListener;
@@ -16,10 +17,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * @author Miles R.
@@ -33,6 +36,7 @@ public class ClanRoleServiceImpl implements ClanRoleService {
     private final AsyncLoadingCache<Long, List<ClanRole>> rolesByClanCache;
 
     private final List<ClanRoleDeleteObserver> deleteObservers;
+    private final List<ClanRoleInheritObserver> inheritObservers;
     @Getter
     private final ClanDeleteObserver clanDeleteObserver;
 
@@ -61,6 +65,7 @@ public class ClanRoleServiceImpl implements ClanRoleService {
             .buildAsync((clanId, _) -> repository.findByClanId(clanId).toCompletableFuture());
 
         deleteObservers = new CopyOnWriteArrayList<>();
+        inheritObservers = new CopyOnWriteArrayList<>();
 
         clanDeleteObserver = new ClanRoleCacheInvalidationListener(
             clanIdToRoleIdCache,
@@ -82,12 +87,21 @@ public class ClanRoleServiceImpl implements ClanRoleService {
     @Override
     public CompletionStage<Void> deleteRole(ClanRole role) {
         return repository.deleteById(role.getId())
-            .thenRun(() -> deleteObservers.forEach(observer -> observer.onClanRoleDeleted(role.getId())));
+            .thenRun(() -> {
+                deleteObservers.forEach(observer -> observer.onClanRoleDeleted(role.getId()));
+                roleByIdCache.synchronous().invalidate(role.getId());
+                rolesByClanCache.synchronous().invalidate(role.getClan());
+            });
     }
 
     @Override
-    public CompletionStage<Void> inheritRole(long roleId, long inheritFrom) {
-        return null;
+    public CompletionStage<Void> inheritRole(ClanRole role, long inheritFrom) {
+        return repository.updateInheritsFromId(role.getId(), inheritFrom)
+            .thenRun(() -> {
+                inheritObservers.forEach(observer -> observer.onClanRoleInherited(role.getId(), inheritFrom));
+                roleByIdCache.synchronous().invalidate(role.getId());
+                rolesByClanCache.synchronous().invalidate(role.getClan());
+            });
     }
 
     @Override
@@ -98,7 +112,7 @@ public class ClanRoleServiceImpl implements ClanRoleService {
 
     @Override
     public CompletionStage<ClanRole> getRoleByClanIdAndName(long clanId, String name) {
-        return null;
+        return repository.findByClanIdAndName(clanId, name);
     }
 
     @Override
@@ -113,11 +127,34 @@ public class ClanRoleServiceImpl implements ClanRoleService {
 
     @Override
     public CompletionStage<Boolean> isRoleHigher(long roleId, long targetRoleId) {
-        return null;
+        if (roleId == targetRoleId) {
+            return CompletableFuture.completedStage(false);
+        }
+
+        CompletionStage<List<ClanRole>> roleChainFuture = repository.findInheritanceHierarchy(roleId);
+        CompletionStage<List<ClanRole>> targetChainFuture = repository.findInheritanceHierarchy(targetRoleId);
+
+        return roleChainFuture
+            .thenCombine(targetChainFuture, (roleChain, targetChain) -> {
+                Set<Long> roleChainIds = roleChain.stream()
+                    .map(ClanRole::getId)
+                    .collect(Collectors.toSet());
+
+                Set<Long> targetChainIds = targetChain.stream()
+                    .map(ClanRole::getId)
+                    .collect(Collectors.toSet());
+
+                return !targetChainIds.contains(roleId) && roleChainIds.contains(targetRoleId);
+            });
     }
 
     @Override
     public void registerDeleteObserver(ClanRoleDeleteObserver observer) {
         deleteObservers.add(observer);
+    }
+
+    @Override
+    public void registerInheritObserver(ClanRoleInheritObserver observer) {
+        inheritObservers.add(observer);
     }
 }

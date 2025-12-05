@@ -6,7 +6,9 @@ import io.github.milesreimann.clansystem.bungee.database.MySQLDatabase;
 import io.github.milesreimann.clansystem.bungee.mapper.ClanPermissionMapper;
 import lombok.RequiredArgsConstructor;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 /**
@@ -47,6 +49,12 @@ public class ClanPermissionRepository {
         FROM clan_permissions;
         """;
 
+    private static final String SELECT_PERMISSIONS_BY_TYPES = """
+        SELECT id_permission, type, value\s
+        FROM clan_permissions\s
+        WHERE type IN (%s);
+        """;
+
     private final MySQLDatabase database;
     private final ClanPermissionMapper mapper;
 
@@ -54,7 +62,7 @@ public class ClanPermissionRepository {
         database.update(CREATE_TABLE).join();
 
         for (ClanPermissionType value : ClanPermissionType.values()) {
-            database.insert(INSERT_PERMISSION, value.name(), value.getPermission());
+            database.update(INSERT_PERMISSION, value.name(), value.getPermission());
         }
     }
 
@@ -74,6 +82,25 @@ public class ClanPermissionRepository {
 
     public CompletionStage<List<ClanPermission>> findAll() {
         return database.query(SELECT_PERMISSIONS)
+            .thenApply(result -> result.stream()
+                .map(mapper)
+                .toList());
+    }
+
+    public CompletionStage<List<ClanPermission>> findByTypes(ClanPermissionType... types) {
+        if (types == null || types.length == 0) {
+            return CompletableFuture.completedStage(List.of());
+        }
+
+        String placeholders = String.join(", ", Collections.nCopies(types.length, "?"));
+        String sql = SELECT_PERMISSIONS_BY_TYPES.formatted(placeholders);
+
+        Object[] params = new Object[types.length];
+        for (int i = 0; i < types.length; i++) {
+            params[i] = types[i].name();
+        }
+
+        return database.query(sql, params)
             .thenApply(result -> result.stream()
                 .map(mapper)
                 .toList());

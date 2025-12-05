@@ -47,7 +47,8 @@ public class ClanSystemPlugin extends Plugin {
         clanRepository.createTable();
 
         ClanRoleRepository clanRoleRepository = new ClanRoleRepository(database, new ClanRoleMapper());
-        clanRoleRepository.createTable();
+        clanRoleRepository.createTableAndTrigger();
+        clanRepository.addRoleForeignKeys();
 
         ClanMemberRepository clanMemberRepository = new ClanMemberRepository(database, new ClanMemberMapper());
         clanMemberRepository.createTable();
@@ -58,17 +59,15 @@ public class ClanSystemPlugin extends Plugin {
         ClanRolePermissionRepository clanRolePermissionRepository = new ClanRolePermissionRepository(database, new ClanRolePermissionMapper());
         clanRolePermissionRepository.createTable();
 
-        clanPermissionService = new ClanPermissionServiceImpl(clanPermissionRepository);
-        clanRolePermissionService = new ClanRolePermissionServiceImpl(clanRolePermissionRepository, clanPermissionService);
-
         clanRoleService = new ClanRoleServiceImpl(clanRoleRepository);
-        clanRoleService.registerDeleteObserver(clanRolePermissionService.getClanRoleDeleteObserver());
-
+        clanPermissionService = new ClanPermissionServiceImpl(clanPermissionRepository);
+        clanRolePermissionService = new ClanRolePermissionServiceImpl(clanRolePermissionRepository, clanPermissionService, clanRoleService);
         clanMemberService = new ClanMemberServiceImpl(clanMemberRepository);
-
         clanService = new ClanServiceImpl(clanRepository, clanRoleService, clanMemberService, clanRolePermissionService);
+
         clanService.registerDeleteObserver(clanMemberService.getClanDeleteObserver());
         clanService.registerDeleteObserver(clanRoleService.getClanDeleteObserver());
+        clanRoleService.registerDeleteObserver(clanRolePermissionService.getClanRoleDeleteObserver());
 
         getProxy().getPluginManager().registerCommand(this, new ClanCommand(this));
     }

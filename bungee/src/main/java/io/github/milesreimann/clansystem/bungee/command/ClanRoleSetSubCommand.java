@@ -49,6 +49,11 @@ public class ClanRoleSetSubCommand extends ClanRoleCommand {
         String roleName = args[1];
         long clanId = clanMember.getClan();
 
+        if (targetUuid.equals(clanMember.getUuid())) {
+            player.sendMessage("du kannst deine eigene rolle nicht setzen");
+            return CompletableFuture.completedStage(null);
+        }
+
         return clanMemberService.getMemberByUuid(targetUuid)
             .thenCompose(targetClanMember -> {
                 if (targetClanMember == null || targetClanMember.getClan() != clanId) {

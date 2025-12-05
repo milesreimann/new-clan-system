@@ -18,7 +18,9 @@ public class ClanMapper implements Function<QueryRow, Clan> {
             row.getOrThrow("id_clan", Long.class),
             UUID.fromString(row.getOrThrow("owner", String.class)),
             row.getOrThrow("name", String.class),
-            row.getOrThrow("tag", String.class)
+            row.getOrThrow("tag", String.class),
+            row.getOrThrow("owner_role_id", Long.class),
+            row.getOrThrow("default_role_id", Long.class)
         );
     }
 }

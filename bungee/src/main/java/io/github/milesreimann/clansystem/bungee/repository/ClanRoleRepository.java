@@ -18,7 +18,7 @@ public class ClanRoleRepository {
         CREATE TABLE IF NOT EXISTS clan_roles(
         id_role BIGINT AUTO_INCREMENT PRIMARY KEY,
         clan_id BIGINT,
-        name VARCHAR(32) NOT NULL utf8mb4_general_ci,
+        name VARCHAR(32) NOT NULL COLLATE utf8mb4_general_ci,
         inherits_from_id BIGINT DEFAULT NULL,
         sort_order INT DEFAULT 0,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -32,17 +32,18 @@ public class ClanRoleRepository {
         """;
 
     private static final String CREATE_DELETE_TRIGGER = """
-            DROP TRIGGER IF EXISTS trg_clan_role_delete;\s
-            CREATE TRIGGER trg_clan_role_delete\s
-            BEFORE DELETE ON clan_roles\s
-            FOR EACH ROW\s
-            BEGIN\s
-                UPDATE clan_members cm\s
-                INNER JOIN clans c ON c.id_clan = cm.clan_id\s
-                SET cm.role_id = c.default_role_id\s
-                WHERE cm.role_id = OLD.id_role;\s
-            END;
+        CREATE TRIGGER trg_clan_role_delete\s
+        BEFORE DELETE ON clan_roles\s
+        FOR EACH ROW\s
+        BEGIN\s
+            UPDATE clan_members cm\s
+            INNER JOIN clans c ON c.id_clan = cm.clan_id\s
+            SET cm.role_id = c.default_role_id\s
+            WHERE cm.role_id = OLD.id_role;\s
+        END;
         """;
+
+    private static final String DROP_DELETE_TRIGGER = "DROP TRIGGER IF EXISTS trg_clan_role_delete";
 
     private static final String INSERT_ROLE = """
         INSERT INTO clan_roles(clan_id, name, inherits_from_id, sort_order)\s
@@ -81,11 +82,24 @@ public class ClanRoleRepository {
         FROM inherits_hierarchy;
         """;
 
+    private static final String SELECT_ROLE_BY_CLAN_ID_AND_NAME = """
+        SELECT id_role, clan_id, name, inherits_from_id, sort_order\s
+        FROM clan_roles\s
+        WHERE clan_id = ? AND name = ?;
+        """;
+
+    private static final String UPDATE_INHERITS_FROM_ID = """
+        UPDATE clan_roles\s
+        SET inherits_from_id = ?\s
+        WHERE id_role = ?;
+        """;
+
     private final MySQLDatabase database;
     private final ClanRoleMapper mapper;
 
     public void createTableAndTrigger() {
         database.update(CREATE_TABLE).join();
+        database.update(DROP_DELETE_TRIGGER).join();
         database.update(CREATE_DELETE_TRIGGER).join();
     }
 
@@ -117,5 +131,17 @@ public class ClanRoleRepository {
             .thenApply(result -> result.stream()
                 .map(mapper)
                 .toList());
+    }
+
+    public CompletionStage<ClanRole> findByClanIdAndName(long clanId, String name) {
+        return database.query(SELECT_ROLE_BY_CLAN_ID_AND_NAME, clanId, name)
+            .thenApply(result -> result.firstOptional()
+                .map(mapper)
+                .orElse(null));
+    }
+
+    public CompletionStage<Boolean> updateInheritsFromId(long roleId, Long inheritsFromId) {
+        return database.update(UPDATE_INHERITS_FROM_ID, inheritsFromId, roleId)
+            .thenApply(rows -> rows == 1);
     }
 }

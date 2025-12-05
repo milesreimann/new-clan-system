@@ -2,6 +2,7 @@ package io.github.milesreimann.clansystem.api.service;
 
 import io.github.milesreimann.clansystem.api.entity.ClanRole;
 import io.github.milesreimann.clansystem.api.observer.ClanRoleDeleteObserver;
+import io.github.milesreimann.clansystem.api.observer.ClanRoleInheritObserver;
 
 import java.util.List;
 import java.util.concurrent.CompletionStage;
@@ -15,7 +16,7 @@ public interface ClanRoleService {
 
     CompletionStage<Void> deleteRole(ClanRole role);
 
-    CompletionStage<Void> inheritRole(long roleId, long inheritFrom);
+    CompletionStage<Void> inheritRole(ClanRole role, long inheritFrom);
 
     CompletionStage<ClanRole> getRoleById(long roleId);
 
@@ -28,4 +29,6 @@ public interface ClanRoleService {
     CompletionStage<Boolean> isRoleHigher(long roleId, long targetRoleId);
 
     void registerDeleteObserver(ClanRoleDeleteObserver observer);
+
+    void registerInheritObserver(ClanRoleInheritObserver observer);
 }

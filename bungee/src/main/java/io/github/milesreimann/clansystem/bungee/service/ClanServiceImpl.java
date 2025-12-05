@@ -70,14 +70,14 @@ public class ClanServiceImpl implements ClanService {
 
     @Override
     public CompletionStage<Void> createClan(UUID owner, String name, String tag) {
-        return repository.insert(new ClanImpl(null, owner, name, tag))
+        return repository.insert(new ClanImpl(null, owner, name, tag, null, null))
             .thenCompose(clanId -> setupNewClan(clanId, owner))
             .thenApply(_ -> null);
     }
 
     @Override
     public CompletionStage<Void> deleteClan(Clan clan) {
-        return clanMemberService.listMembersByClanId(clan.getId())
+        return repository.deleteById(clan.getId())
             .thenRun(() -> {
                 deleteObservers.forEach(observer -> observer.onClanDeleted(clan.getId()));
                 invalidateClan(clan);

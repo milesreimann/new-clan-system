@@ -25,6 +25,7 @@ public class ClanCommand extends Command {
         subCommands.put("leave", new ClanLeaveSubCommand(plugin));
         subCommands.put("delete", new ClanDeleteSubCommand(plugin));
         subCommands.put("kick", new ClanKickSubCommand(plugin));
+        subCommands.put("role", new ClanRoleSubCommand(plugin));
     }
 
     @Override

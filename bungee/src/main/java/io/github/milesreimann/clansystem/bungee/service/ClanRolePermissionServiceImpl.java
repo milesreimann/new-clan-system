@@ -4,6 +4,7 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.github.milesreimann.clansystem.api.entity.ClanRolePermission;
 import io.github.milesreimann.clansystem.api.observer.ClanRoleDeleteObserver;
+import io.github.milesreimann.clansystem.api.observer.ClanRoleInheritObserver;
 import io.github.milesreimann.clansystem.api.service.ClanPermissionService;
 import io.github.milesreimann.clansystem.api.service.ClanRolePermissionService;
 import io.github.milesreimann.clansystem.api.service.ClanRoleService;
@@ -11,6 +12,7 @@ import io.github.milesreimann.clansystem.bungee.listener.ClanRolePermissionCache
 import io.github.milesreimann.clansystem.bungee.repository.ClanRolePermissionRepository;
 import lombok.Getter;
 
+import java.awt.*;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -32,6 +34,8 @@ public class ClanRolePermissionServiceImpl implements ClanRolePermissionService 
 
     @Getter
     private final ClanRoleDeleteObserver clanRoleDeleteObserver;
+    @Getter
+    private final ClanRoleInheritObserver clanRoleInheritObserver;
 
     public ClanRolePermissionServiceImpl(
         ClanRolePermissionRepository repository,
@@ -47,7 +51,9 @@ public class ClanRolePermissionServiceImpl implements ClanRolePermissionService 
             .expireAfterWrite(15, TimeUnit.MINUTES)
             .buildAsync((roleId, _) -> loadEffectivePermissions(roleId).toCompletableFuture());
 
-        clanRoleDeleteObserver = new ClanRolePermissionCacheInvalidationListener(rolePermissionsCache);
+        ClanRolePermissionCacheInvalidationListener listener = new ClanRolePermissionCacheInvalidationListener(rolePermissionsCache);
+        clanRoleDeleteObserver = listener;
+        clanRoleInheritObserver = listener;
     }
 
     @Override
@@ -55,7 +61,7 @@ public class ClanRolePermissionServiceImpl implements ClanRolePermissionService 
         return repository.insert(roleId, permissionId)
             .thenCompose(_ -> clanRoleService.listRoleInheritanceHierarchy(roleId))
             .thenAccept(clanRoles -> {
-                rolePermissionsCache.synchronous().refresh(roleId);
+                rolePermissionsCache.synchronous().invalidate(roleId);
                 clanRoles.forEach(clanRole -> rolePermissionsCache.synchronous().invalidate(clanRole.getId()));
             });
     }
@@ -65,7 +71,7 @@ public class ClanRolePermissionServiceImpl implements ClanRolePermissionService 
         return repository.deleteByRoleIdAndPermissionId(roleId, permissionId)
             .thenCompose(_ -> clanRoleService.listRoleInheritanceHierarchy(roleId))
             .thenAccept(clanRoles -> {
-                rolePermissionsCache.synchronous().refresh(roleId);
+                rolePermissionsCache.synchronous().invalidate(roleId);
                 clanRoles.forEach(clanRole -> rolePermissionsCache.synchronous().invalidate(clanRole.getId()));
             });
     }
@@ -110,10 +116,10 @@ public class ClanRolePermissionServiceImpl implements ClanRolePermissionService 
         return clanRoleService.listRoleInheritanceHierarchy(roleId)
             .thenCompose(clanRoles -> {
                 List<CompletableFuture<List<ClanRolePermission>>> permissionFutures = clanRoles.stream()
-                    .map(clanRole -> listPermissions(clanRole.getId()).toCompletableFuture())
+                    .map(clanRole -> repository.findByRoleId(clanRole.getId()).toCompletableFuture())
                     .toList();
 
-                return CompletableFuture.allOf(permissionFutures.toArray(new CompletableFuture[0]))
+                return CompletableFuture.allOf(permissionFutures.toArray(CompletableFuture[]::new))
                     .thenApply(_ -> permissionFutures.stream()
                         .map(CompletableFuture::join)
                         .flatMap(List::stream)

@@ -38,17 +38,17 @@ public class ClanRoleSubCommand implements ClanSubCommand {
 
     @Override
     public void execute(ProxiedPlayer player, String[] args) {
-        if (args.length < 2) {
+        if (args.length < 1) {
             // help
             return;
         }
 
         UUID playerUuid = player.getUniqueId();
-        String operation = args[0];
+        String operation = args[0].toLowerCase();
 
         ClanRoleCommand clanRoleCommand = clanRoleCommandMap.get(operation);
         if (clanRoleCommand == null) {
-            // help
+            player.sendMessage("unbekannter befehl");
             return;
         }
 
@@ -76,6 +76,10 @@ public class ClanRoleSubCommand implements ClanSubCommand {
                                 return clanRoleCommand.execute(player, clanMember, roleCommandArgs);
                             });
                     });
+            })
+            .exceptionally(t -> {
+                t.printStackTrace();
+                return null;
             });
     }
 

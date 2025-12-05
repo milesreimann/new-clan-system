@@ -15,4 +15,6 @@ public class ClanImpl implements Clan {
     private final UUID owner;
     private final String name;
     private final String tag;
+    private final Long ownerRole;
+    private final Long defaultRole;
 }
