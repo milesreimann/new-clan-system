@@ -5,6 +5,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import io.github.milesreimann.clansystem.api.entity.ClanMember;
 import io.github.milesreimann.clansystem.api.observer.ClanDeleteObserver;
 import io.github.milesreimann.clansystem.api.service.ClanMemberService;
+import io.github.milesreimann.clansystem.api.service.ClanRoleService;
 import io.github.milesreimann.clansystem.bungee.entity.ClanMemberImpl;
 import io.github.milesreimann.clansystem.bungee.listener.ClanMemberCacheInvalidationListener;
 import io.github.milesreimann.clansystem.bungee.listener.ClanMemberCacheRemovalListener;
@@ -26,6 +27,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class ClanMemberServiceImpl implements ClanMemberService {
     private final ClanMemberRepository repository;
+    private final ClanRoleService clanRoleService;
 
     private final Map<Long, List<UUID>> clanIdToMemberUuidCache;
     private final AsyncLoadingCache<UUID, Optional<ClanMember>> memberByUuidCache;
@@ -34,8 +36,9 @@ public class ClanMemberServiceImpl implements ClanMemberService {
     @Getter
     private final ClanDeleteObserver clanDeleteObserver;
 
-    public ClanMemberServiceImpl(ClanMemberRepository repository) {
+    public ClanMemberServiceImpl(ClanMemberRepository repository, ClanRoleService clanRoleService) {
         this.repository = repository;
+        this.clanRoleService = clanRoleService;
 
         clanIdToMemberUuidCache = new ConcurrentHashMap<>();
 
@@ -69,6 +72,12 @@ public class ClanMemberServiceImpl implements ClanMemberService {
     public CompletionStage<Void> joinClan(UUID uuid, long clanId, long roleId) {
         return repository.insert(new ClanMemberImpl(uuid, clanId, roleId, null))
             .thenAccept(this::invalidateMember);
+    }
+
+    @Override
+    public CompletionStage<Void> joinClan(UUID uuid, long clanId) {
+        return clanRoleService.getDefaultRoleByClanId(clanId)
+            .thenCompose(defaultRole -> joinClan(uuid, clanId, defaultRole.getId()));
     }
 
     @Override

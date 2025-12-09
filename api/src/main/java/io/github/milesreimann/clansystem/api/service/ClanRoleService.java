@@ -22,6 +22,8 @@ public interface ClanRoleService {
 
     CompletionStage<ClanRole> getRoleByClanIdAndName(long clanId, String name);
 
+    CompletionStage<ClanRole> getDefaultRoleByClanId(long clanId);
+
     CompletionStage<List<ClanRole>> listRolesByClanId(long clanId);
 
     CompletionStage<List<ClanRole>> listRoleInheritanceHierarchy(long roleId);

@@ -10,11 +10,9 @@ import java.util.UUID;
 public interface ClanInvitation {
     Long getClan();
 
-    UUID getSender();
+    Long getSender();
 
     UUID getRecipient();
 
     Instant getTimestamp();
-
-    Instant getExpiresAt();
 }

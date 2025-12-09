@@ -116,6 +116,11 @@ public class ClanRoleServiceImpl implements ClanRoleService {
     }
 
     @Override
+    public CompletionStage<ClanRole> getDefaultRoleByClanId(long clanId) {
+        return repository.findDefaultRoleByClanId(clanId);
+    }
+
+    @Override
     public CompletionStage<List<ClanRole>> listRolesByClanId(long clanId) {
         return rolesByClanCache.get(clanId);
     }

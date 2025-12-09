@@ -17,7 +17,9 @@ public enum ClanPermissionType {
     INHERIT_ROLE("clansystem.role.inherit"),
     SET_ROLE("clansystem.role.set"),
     SET_ROLE_BYPASS("clansystem.role.set.bypass"),
-    MANAGE_ROLES("clansystem.role.manage");
+    MANAGE_ROLES("clansystem.role.manage"),
+    SEND_INVITE("clansystem.invite.send"),
+    VIEW_INVITES("clansystem.invite.view");
 
     private final String permission;
 

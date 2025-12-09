@@ -94,6 +94,14 @@ public class ClanRoleRepository {
         WHERE id_role = ?;
         """;
 
+    private static final String FIND_DEFAULT_ROLE_BY_CLAN_ID = """
+        SELECT id_role, clan_id, name, inherits_from_id, sort_order\s
+        FROM clan_roles cr\s
+        INNER JOIN clans c\s
+        ON c.default_role_id = cr.id_role
+        WHERE clan_id = ?;
+        """;
+
     private final MySQLDatabase database;
     private final ClanRoleMapper mapper;
 
@@ -143,5 +151,12 @@ public class ClanRoleRepository {
     public CompletionStage<Boolean> updateInheritsFromId(long roleId, Long inheritsFromId) {
         return database.update(UPDATE_INHERITS_FROM_ID, inheritsFromId, roleId)
             .thenApply(rows -> rows == 1);
+    }
+
+    public CompletionStage<ClanRole> findDefaultRoleByClanId(long clanId) {
+        return database.query(FIND_DEFAULT_ROLE_BY_CLAN_ID, clanId)
+            .thenApply(result -> result.firstOptional()
+                .map(mapper)
+                .orElse(null));
     }
 }

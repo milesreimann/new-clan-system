@@ -13,6 +13,8 @@ import java.util.concurrent.CompletionStage;
 public interface ClanMemberService {
     CompletionStage<Void> joinClan(UUID uuid, long clanId, long roleId);
 
+    CompletionStage<Void> joinClan(UUID uuid, long clanId);
+
     CompletionStage<Void> leaveClan(ClanMember member);
 
     CompletionStage<Void> updateRole(ClanMember member, long newRoleId);

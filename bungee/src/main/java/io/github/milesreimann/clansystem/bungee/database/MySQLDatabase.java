@@ -101,8 +101,9 @@ public class MySQLDatabase {
         ensureDatabaseIsConnected();
 
         return CompletableFuture.supplyAsync(() -> {
-            try (Connection connection = dataSource.getConnection();
-                 PreparedStatement statement = createStatement(connection, sql, args)
+            try (
+                Connection connection = dataSource.getConnection();
+                PreparedStatement statement = createStatement(connection, sql, args)
             ) {
                 return statement.executeUpdate();
             } catch (SQLException e) {
@@ -116,9 +117,10 @@ public class MySQLDatabase {
         ensureDatabaseIsConnected();
 
         return CompletableFuture.supplyAsync(() -> {
-            try (Connection connection = dataSource.getConnection();
-                 PreparedStatement statement = createStatement(connection, sql, args);
-                 ResultSet resultSet = statement.executeQuery()
+            try (
+                Connection connection = dataSource.getConnection();
+                PreparedStatement statement = createStatement(connection, sql, args);
+                ResultSet resultSet = statement.executeQuery()
             ) {
                 ResultSetMetaData resultMeta = resultSet.getMetaData();
                 int columnCount = resultMeta.getColumnCount();
