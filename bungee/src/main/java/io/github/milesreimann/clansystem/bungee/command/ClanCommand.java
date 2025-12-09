@@ -1,6 +1,7 @@
 package io.github.milesreimann.clansystem.bungee.command;
 
 import io.github.milesreimann.clansystem.bungee.plugin.ClanSystemPlugin;
+import lombok.EqualsAndHashCode;
 import net.md_5.bungee.api.CommandSender;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 import net.md_5.bungee.api.plugin.Command;
@@ -14,6 +15,7 @@ import java.util.Map;
  * @author Miles R.
  * @since 29.11.2025
  */
+@EqualsAndHashCode(callSuper = true)
 public class ClanCommand extends Command {
     private final Map<String, ClanSubCommand> subCommands = new HashMap<>();
 
@@ -29,6 +31,9 @@ public class ClanCommand extends Command {
         subCommands.put("invite", new ClanInviteSubCommand(plugin));
         subCommands.put("join", new ClanJoinSubCommand(plugin));
         subCommands.put("decline", new ClanDeclineSubCommand(plugin));
+        subCommands.put("request", new ClanRequestSubCommand(plugin));
+        subCommands.put("accept", new ClanAcceptSubCommand(plugin));
+        subCommands.put("deny", new ClanDenySubCommand(plugin));
     }
 
     @Override

@@ -18,12 +18,12 @@ public class ClanInvitationRepository {
     private static final String CREATE_TABLE = """
         CREATE TABLE IF NOT EXISTS clan_invitations(
         clan_id BIGINT,
-        sender BIGINT NOT NULL,
+        sender BIGINT,
         receiver VARCHAR(36),
         `timestamp` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (clan_id, receiver),
         FOREIGN KEY (clan_id) REFERENCES clans(id_clan) ON UPDATE CASCADE ON DELETE CASCADE,
-        FOREIGN KEY (sender) REFERENCES clan_members(player)
+        FOREIGN KEY (sender) REFERENCES clan_members(player) ON UPDATE CASCADE ON DELETE SET NULL
         );
         """;
 
@@ -51,13 +51,13 @@ public class ClanInvitationRepository {
         """;
 
     private static final String SELECT_INVITATION_BY_CLAN_ID_AND_RECEIVER = """
-        SELECT clan_id, sender, receiver, timestamp\s
+        SELECT clan_id, sender, receiver, `timestamp`\s
         FROM clan_invitations\s
         WHERE clan_id = ? AND receiver = ?;
         """;
 
-    private static final String SELECT_INVITATION_BY_RECEIVER = """
-        SELECT clan_id, sender, receiver, timestamp\s
+    private static final String SELECT_INVITATIONS_BY_RECEIVER = """
+        SELECT clan_id, sender, receiver, `timestamp`\s
         FROM clan_invitations\s
         WHERE receiver = ?;
         """;
@@ -71,12 +71,12 @@ public class ClanInvitationRepository {
     }
 
     public CompletionStage<Boolean> insert(ClanInvitation invitation) {
-        return database.update(INSERT_INVITATION, invitation.getClan(), invitation.getSender(), invitation.getRecipient())
+        return database.update(INSERT_INVITATION, invitation.getClan(), invitation.getSender(), invitation.getRecipient().toString())
             .thenApply(rows -> rows == 0);
     }
 
     public CompletionStage<Boolean> deleteByClanIdAndReceiver(long clanId, UUID receiver) {
-        return database.update(DELETE_INVITATION_BY_CLAN_ID_AND_RECEIVER, clanId, receiver)
+        return database.update(DELETE_INVITATION_BY_CLAN_ID_AND_RECEIVER, clanId, receiver.toString())
             .thenApply(rows -> rows == 1);
     }
 
@@ -86,14 +86,14 @@ public class ClanInvitationRepository {
     }
 
     public CompletionStage<ClanInvitation> findByClanIdAndReceiver(long clanId, UUID receiver) {
-        return database.query(SELECT_INVITATION_BY_CLAN_ID_AND_RECEIVER, clanId, receiver)
+        return database.query(SELECT_INVITATION_BY_CLAN_ID_AND_RECEIVER, clanId, receiver.toString())
             .thenApply(result -> result.firstOptional()
                 .map(mapper)
                 .orElse(null));
     }
 
     public CompletionStage<List<ClanInvitation>> findByReceiver(UUID receiver) {
-        return database.query(SELECT_INVITATION_BY_RECEIVER, receiver)
+        return database.query(SELECT_INVITATIONS_BY_RECEIVER, receiver.toString())
             .thenApply(result -> result.stream()
                 .map(mapper)
                 .toList());

@@ -17,7 +17,7 @@ public class ClanInvitationMapper implements Function<QueryRow, ClanInvitation> 
     public ClanInvitation apply(QueryRow row) {
         return new ClanInvitationImpl(
             row.getOrThrow("clan_id", Long.class),
-            row.getOrThrow("sender", Long.class),
+            row.get("sender", Long.class),
             UUID.fromString(row.getOrThrow("receiver", String.class)),
             row.getOrThrow("timestamp", Timestamp.class).toInstant()
         );

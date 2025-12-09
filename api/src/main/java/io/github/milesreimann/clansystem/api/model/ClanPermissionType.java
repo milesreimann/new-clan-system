@@ -7,9 +7,9 @@ package io.github.milesreimann.clansystem.api.model;
 public enum ClanPermissionType {
     KICK_MEMBER("clansystem.member.kick"),
     KICK_MEMBER_BYPASS("clansystem.member.kick.bypass"),
-    SEND_INVITATION("clansystem.invite"),
-    ACCEPT_REQUEST("clansystem.request.accept"),
-    DENY_REQUEST("clansystem.request.deny"),
+    SEND_INVITATION("clansystem.invitation.send"),
+    ACCEPT_JOIN_REQUEST("clansystem.joinrequest.accept"),
+    DENY_JOIN_REQUEST("clansystem.joinrequest.deny"),
     RENAME_CLAN("clansystem.rename"),
     RETAG_CLAN("clansystem.retag"),
     CREATE_ROLE("clansystem.role.create"),
@@ -17,9 +17,7 @@ public enum ClanPermissionType {
     INHERIT_ROLE("clansystem.role.inherit"),
     SET_ROLE("clansystem.role.set"),
     SET_ROLE_BYPASS("clansystem.role.set.bypass"),
-    MANAGE_ROLES("clansystem.role.manage"),
-    SEND_INVITE("clansystem.invite.send"),
-    VIEW_INVITES("clansystem.invite.view");
+    MANAGE_ROLES("clansystem.role.manage");
 
     private final String permission;
 

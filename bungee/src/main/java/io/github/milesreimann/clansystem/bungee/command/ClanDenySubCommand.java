@@ -1,7 +1,7 @@
 package io.github.milesreimann.clansystem.bungee.command;
 
 import io.github.milesreimann.clansystem.api.model.ClanPermissionType;
-import io.github.milesreimann.clansystem.api.service.ClanInvitationService;
+import io.github.milesreimann.clansystem.api.service.ClanJoinRequestService;
 import io.github.milesreimann.clansystem.api.service.ClanMemberService;
 import io.github.milesreimann.clansystem.api.service.ClanPermissionService;
 import io.github.milesreimann.clansystem.api.service.ClanRolePermissionService;
@@ -15,14 +15,14 @@ import java.util.concurrent.CompletableFuture;
  * @author Miles R.
  * @since 09.12.25
  */
-public class ClanInviteSubCommand implements ClanSubCommand {
-    private final ClanInvitationService clanInvitationService;
+public class ClanDenySubCommand implements ClanSubCommand {
+    private final ClanJoinRequestService clanJoinRequestService;
     private final ClanMemberService clanMemberService;
     private final ClanPermissionService clanPermissionService;
     private final ClanRolePermissionService clanRolePermissionService;
 
-    public ClanInviteSubCommand(ClanSystemPlugin plugin) {
-        clanInvitationService = plugin.getClanInvitationService();
+    public ClanDenySubCommand(ClanSystemPlugin plugin) {
+        clanJoinRequestService = plugin.getClanJoinRequestService();
         clanMemberService = plugin.getClanMemberService();
         clanPermissionService = plugin.getClanPermissionService();
         clanRolePermissionService = plugin.getClanRolePermissionService();
@@ -45,44 +45,29 @@ public class ClanInviteSubCommand implements ClanSubCommand {
             return;
         }
 
-
-
         clanMemberService.getMemberByUuid(playerUuid)
             .thenCompose(clanMember -> {
                 if (clanMember == null) {
-                    player.sendMessage("du bist nicht in einem clan");
+                    player.sendMessage("bist in keinem clan");
                     return CompletableFuture.completedStage(null);
                 }
 
-                return clanPermissionService.getPermissionByType(ClanPermissionType.SEND_INVITATION)
-                    .thenCompose(invitePermission -> {
-                        if (invitePermission == null) {
+                return clanPermissionService.getPermissionByType(ClanPermissionType.DENY_JOIN_REQUEST)
+                    .thenCompose(denyPermission -> {
+                        if (denyPermission == null) {
                             player.sendMessage("keine rechte");
                             return CompletableFuture.completedStage(null);
                         }
 
-                        return clanRolePermissionService.hasPermission(clanMember.getRole(), invitePermission.getId())
-                            .thenCompose(hasInvitePermission -> {
-                                if (!Boolean.TRUE.equals(hasInvitePermission)) {
+                        return clanRolePermissionService.hasPermission(clanMember.getRole(), denyPermission.getId())
+                            .thenCompose(hasDenyPermission -> {
+                                if (!Boolean.TRUE.equals(hasDenyPermission)) {
                                     player.sendMessage("keine rechte");
                                     return CompletableFuture.completedStage(null);
                                 }
 
-                                if (targetUuid.equals(playerUuid)) {
-                                    player.sendMessage("du kannst dich nicht selbst einladen");
-                                    return CompletableFuture.completedStage(null);
-                                }
-
-                                return clanMemberService.isInClan(targetUuid)
-                                    .thenCompose(isTargetInClan -> {
-                                        if (Boolean.TRUE.equals(isTargetInClan)) {
-                                            player.sendMessage("spieler ist bereits in einem clan");
-                                            return CompletableFuture.completedStage(null);
-                                        }
-
-                                        return clanInvitationService.sendInvitation(clanMember.getClan(), clanMember.getClan(), targetUuid)
-                                            .thenRun(() -> player.sendMessage("einladung versendet"));
-                                    });
+                                return clanJoinRequestService.denyJoinRequest(playerUuid, clanMember.getClan())
+                                    .thenRun(() -> player.sendMessage("anfrage abgelehnt"));
                             });
                     });
             });
