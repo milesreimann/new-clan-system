@@ -8,11 +8,9 @@ import java.util.UUID;
  * @since 04.12.25
  */
 public interface ClanJoinRequest {
+    UUID getPlayer();
+
     Long getClan();
 
-    UUID getSender();
-
     Instant getTimestamp();
-
-    Instant getExpiresAt();
 }

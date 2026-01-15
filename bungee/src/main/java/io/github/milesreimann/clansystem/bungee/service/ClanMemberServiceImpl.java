@@ -5,6 +5,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import io.github.milesreimann.clansystem.api.entity.ClanMember;
 import io.github.milesreimann.clansystem.bungee.observer.ClanDeleteObserver;
 import io.github.milesreimann.clansystem.api.service.ClanMemberService;
+import io.github.milesreimann.clansystem.api.service.ClanRoleService;
 import io.github.milesreimann.clansystem.bungee.entity.ClanMemberImpl;
 import io.github.milesreimann.clansystem.bungee.listener.ClanMemberCacheInvalidationListener;
 import io.github.milesreimann.clansystem.bungee.listener.ClanMemberCacheRemovalListener;
@@ -30,6 +31,7 @@ public class ClanMemberServiceImpl implements ClanMemberService {
     private static final int CLAN_MEMBERS_CACHE_EXPIRY_MINUTES = 1;
 
     private final ClanMemberRepository repository;
+    private final ClanRoleService clanRoleService;
 
     private final Map<Long, List<UUID>> clanIdToMemberUuidCache;
     private final AsyncLoadingCache<UUID, Optional<ClanMember>> memberByUuidCache;
@@ -38,8 +40,9 @@ public class ClanMemberServiceImpl implements ClanMemberService {
     @Getter
     private final ClanDeleteObserver clanDeleteObserver;
 
-    public ClanMemberServiceImpl(ClanMemberRepository repository) {
+    public ClanMemberServiceImpl(ClanMemberRepository repository, ClanRoleService clanRoleService) {
         this.repository = repository;
+        this.clanRoleService = clanRoleService;
 
         clanIdToMemberUuidCache = new ConcurrentHashMap<>();
 
@@ -76,6 +79,12 @@ public class ClanMemberServiceImpl implements ClanMemberService {
     }
 
     @Override
+    public CompletionStage<Void> joinClan(UUID uuid, long clanId) {
+        return clanRoleService.getDefaultRoleByClanId(clanId)
+            .thenCompose(defaultRole -> joinClan(uuid, clanId, defaultRole.getId()));
+    }
+
+    @Override
     public CompletionStage<Void> leaveClan(ClanMember member) {
         return repository.deleteByUuid(member.getUuid())
             .thenRun(() -> invalidateMember(member));
@@ -88,19 +97,9 @@ public class ClanMemberServiceImpl implements ClanMemberService {
     }
 
     @Override
-    public CompletionStage<Void> sendMessage(ClanMember sender, ClanMember receiver, String message) {
-        return null;
-    }
-
-    @Override
     public CompletionStage<ClanMember> getMemberByUuid(UUID memberUuid) {
         return memberByUuidCache.get(memberUuid)
             .thenApply(optionalMember -> optionalMember.orElse(null));
-    }
-
-    @Override
-    public CompletionStage<List<ClanMember>> listMembersByClanId(long clanId) {
-        return membersByClanCache.get(clanId);
     }
 
     @Override
@@ -111,18 +110,6 @@ public class ClanMemberServiceImpl implements ClanMemberService {
         }
 
         return repository.existsByUuid(memberUuid);
-    }
-
-    @Override
-    public CompletionStage<Boolean> isInClan(UUID memberUuid, long clanId) {
-        CompletionStage<Optional<ClanMember>> memberFuture = memberByUuidCache.getIfPresent(memberUuid);
-        if (memberFuture != null) {
-            return memberFuture.thenApply(optional -> optional
-                .filter(member -> member.getClan() == clanId)
-                .isPresent());
-        }
-
-        return repository.existsByUuidAndClanId(memberUuid, clanId);
     }
 
     private void invalidateMember(ClanMember member) {

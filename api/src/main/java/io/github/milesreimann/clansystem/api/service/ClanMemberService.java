@@ -13,17 +13,13 @@ import java.util.concurrent.CompletionStage;
 public interface ClanMemberService {
     CompletionStage<Void> joinClan(UUID uuid, long clanId, long roleId);
 
+    CompletionStage<Void> joinClan(UUID uuid, long clanId);
+
     CompletionStage<Void> leaveClan(ClanMember member);
 
     CompletionStage<Void> updateRole(ClanMember member, long newRoleId);
 
-    CompletionStage<Void> sendMessage(ClanMember sender, ClanMember receiver, String message);
-
     CompletionStage<ClanMember> getMemberByUuid(UUID memberUuid);
 
-    CompletionStage<List<ClanMember>> listMembersByClanId(long clanId);
-
     CompletionStage<Boolean> isInClan(UUID memberUuid);
-
-    CompletionStage<Boolean> isInClan(UUID memberUuid, long clanId);
 }
