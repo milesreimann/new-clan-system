@@ -1,6 +1,6 @@
 package io.github.milesreimann.clansystem.bungee.command;
 
-import io.github.milesreimann.clansystem.bungee.plugin.ClanSystemPlugin;
+import io.github.milesreimann.clansystem.bungee.ClanSystemPlugin;
 import lombok.EqualsAndHashCode;
 import net.md_5.bungee.api.CommandSender;
 import net.md_5.bungee.api.connection.ProxiedPlayer;

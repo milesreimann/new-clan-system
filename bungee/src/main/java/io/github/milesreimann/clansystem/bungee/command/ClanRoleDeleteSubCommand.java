@@ -4,7 +4,7 @@ import io.github.milesreimann.clansystem.api.entity.ClanMember;
 import io.github.milesreimann.clansystem.api.model.ClanPermissionType;
 import io.github.milesreimann.clansystem.api.service.ClanRoleService;
 import io.github.milesreimann.clansystem.api.service.ClanService;
-import io.github.milesreimann.clansystem.bungee.plugin.ClanSystemPlugin;
+import io.github.milesreimann.clansystem.bungee.ClanSystemPlugin;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 
 import java.util.concurrent.CompletableFuture;

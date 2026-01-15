@@ -1,4 +1,4 @@
-package io.github.milesreimann.clansystem.bungee.plugin;
+package io.github.milesreimann.clansystem.bungee;
 
 import io.github.milesreimann.clansystem.api.service.ClanInvitationService;
 import io.github.milesreimann.clansystem.api.service.ClanJoinRequestService;

@@ -6,7 +6,7 @@ import io.github.milesreimann.clansystem.api.service.ClanPermissionService;
 import io.github.milesreimann.clansystem.api.service.ClanRolePermissionService;
 import io.github.milesreimann.clansystem.api.service.ClanService;
 import io.github.milesreimann.clansystem.bungee.config.MainConfig;
-import io.github.milesreimann.clansystem.bungee.plugin.ClanSystemPlugin;
+import io.github.milesreimann.clansystem.bungee.ClanSystemPlugin;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 
 import java.util.UUID;
