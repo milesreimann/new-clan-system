@@ -17,6 +17,9 @@ import java.util.concurrent.TimeUnit;
  * @since 30.11.2025
  */
 public class ClanPermissionServiceImpl implements ClanPermissionService {
+    private static final int CACHE_SIZE = 100;
+    private static final int CACHE_EXPIRY_MINUTES = 5;
+
     private final ClanPermissionRepository repository;
     private final AsyncLoadingCache<Long, Optional<ClanPermission>> permissionByIdCache;
 
@@ -24,8 +27,8 @@ public class ClanPermissionServiceImpl implements ClanPermissionService {
         this.repository = repository;
 
         permissionByIdCache = Caffeine.newBuilder()
-            .maximumSize(100L)
-            .expireAfterWrite(5, TimeUnit.MINUTES)
+            .maximumSize(CACHE_SIZE)
+            .expireAfterWrite(CACHE_EXPIRY_MINUTES, TimeUnit.MINUTES)
             .buildAsync((permissionId, _) -> repository.findById(permissionId)
                 .thenApply(Optional::ofNullable)
                 .toCompletableFuture());

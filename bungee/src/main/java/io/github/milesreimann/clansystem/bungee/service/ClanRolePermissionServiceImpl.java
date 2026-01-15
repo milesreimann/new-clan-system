@@ -3,8 +3,8 @@ package io.github.milesreimann.clansystem.bungee.service;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.github.milesreimann.clansystem.api.entity.ClanRolePermission;
-import io.github.milesreimann.clansystem.api.observer.ClanRoleDeleteObserver;
-import io.github.milesreimann.clansystem.api.observer.ClanRoleInheritObserver;
+import io.github.milesreimann.clansystem.bungee.observer.ClanRoleDeleteObserver;
+import io.github.milesreimann.clansystem.bungee.observer.ClanRoleInheritObserver;
 import io.github.milesreimann.clansystem.api.service.ClanPermissionService;
 import io.github.milesreimann.clansystem.api.service.ClanRolePermissionService;
 import io.github.milesreimann.clansystem.api.service.ClanRoleService;
@@ -12,7 +12,6 @@ import io.github.milesreimann.clansystem.bungee.listener.ClanRolePermissionCache
 import io.github.milesreimann.clansystem.bungee.repository.ClanRolePermissionRepository;
 import lombok.Getter;
 
-import java.awt.*;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -26,6 +25,9 @@ import java.util.stream.Collectors;
  * @since 30.11.2025
  */
 public class ClanRolePermissionServiceImpl implements ClanRolePermissionService {
+    private static final int CACHE_SIZE = 5_000;
+    private static final int CACHE_EXPIRY_MINUTES = 15;
+
     private final ClanRolePermissionRepository repository;
     private final ClanPermissionService clanPermissionService;
     private final ClanRoleService clanRoleService;
@@ -47,8 +49,8 @@ public class ClanRolePermissionServiceImpl implements ClanRolePermissionService 
         this.clanRoleService = clanRoleService;
 
         rolePermissionsCache = Caffeine.newBuilder()
-            .maximumSize(5_000)
-            .expireAfterWrite(15, TimeUnit.MINUTES)
+            .maximumSize(CACHE_SIZE)
+            .expireAfterWrite(CACHE_EXPIRY_MINUTES, TimeUnit.MINUTES)
             .buildAsync((roleId, _) -> loadEffectivePermissions(roleId).toCompletableFuture());
 
         ClanRolePermissionCacheInvalidationListener listener = new ClanRolePermissionCacheInvalidationListener(rolePermissionsCache);

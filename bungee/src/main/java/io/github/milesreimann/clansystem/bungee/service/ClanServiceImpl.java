@@ -4,7 +4,7 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.github.milesreimann.clansystem.api.entity.Clan;
-import io.github.milesreimann.clansystem.api.observer.ClanDeleteObserver;
+import io.github.milesreimann.clansystem.bungee.observer.ClanDeleteObserver;
 import io.github.milesreimann.clansystem.api.service.ClanMemberService;
 import io.github.milesreimann.clansystem.api.service.ClanRolePermissionService;
 import io.github.milesreimann.clansystem.api.service.ClanRoleService;
@@ -26,6 +26,10 @@ import java.util.concurrent.TimeUnit;
  * @since 28.11.2025
  */
 public class ClanServiceImpl implements ClanService {
+    private static final int CLAN_CACHE_SIZE = 5_000;
+    private static final int CLAN_CACHE_EXPIRY_MINUTES = 10;
+    private static final int NAME_TAG_CACHE_EXPIRY_MINUTES = 5;
+
     private final ClanRepository repository;
     private final ClanRoleService clanRoleService;
     private final ClanMemberService clanMemberService;
@@ -49,20 +53,20 @@ public class ClanServiceImpl implements ClanService {
         this.clanRolePermissionService = clanRolePermissionService;
 
         clanByIdCache = Caffeine.newBuilder()
-            .maximumSize(5_000)
-            .expireAfterWrite(10, TimeUnit.MINUTES)
+            .maximumSize(CLAN_CACHE_SIZE)
+            .expireAfterWrite(CLAN_CACHE_EXPIRY_MINUTES, TimeUnit.MINUTES)
             .buildAsync((clanId, _) -> repository.findById(clanId)
                 .thenApply(Optional::ofNullable)
                 .toCompletableFuture());
 
         clanNameToIdCache = Caffeine.newBuilder()
-            .maximumSize(5_000)
-            .expireAfterWrite(5, TimeUnit.MINUTES)
+            .maximumSize(CLAN_CACHE_SIZE)
+            .expireAfterWrite(NAME_TAG_CACHE_EXPIRY_MINUTES, TimeUnit.MINUTES)
             .build();
 
         clanTagToIdCache = Caffeine.newBuilder()
-            .maximumSize(5_000)
-            .expireAfterWrite(5, TimeUnit.MINUTES)
+            .maximumSize(CLAN_CACHE_SIZE)
+            .expireAfterWrite(NAME_TAG_CACHE_EXPIRY_MINUTES, TimeUnit.MINUTES)
             .build();
 
         deleteObservers = new CopyOnWriteArrayList<>();
@@ -158,7 +162,6 @@ public class ClanServiceImpl implements ClanService {
             : repository.existsByTag(tag);
     }
 
-    @Override
     public void registerDeleteObserver(ClanDeleteObserver observer) {
         deleteObservers.add(observer);
     }

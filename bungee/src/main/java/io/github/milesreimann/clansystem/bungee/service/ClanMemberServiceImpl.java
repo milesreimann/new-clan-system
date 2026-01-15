@@ -3,7 +3,7 @@ package io.github.milesreimann.clansystem.bungee.service;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.github.milesreimann.clansystem.api.entity.ClanMember;
-import io.github.milesreimann.clansystem.api.observer.ClanDeleteObserver;
+import io.github.milesreimann.clansystem.bungee.observer.ClanDeleteObserver;
 import io.github.milesreimann.clansystem.api.service.ClanMemberService;
 import io.github.milesreimann.clansystem.bungee.entity.ClanMemberImpl;
 import io.github.milesreimann.clansystem.bungee.listener.ClanMemberCacheInvalidationListener;
@@ -25,6 +25,10 @@ import java.util.concurrent.TimeUnit;
  * @since 29.11.2025
  */
 public class ClanMemberServiceImpl implements ClanMemberService {
+    private static final int MEMBER_CACHE_SIZE = 5_000;
+    private static final int MEMBER_CACHE_EXPIRY_MINUTES = 5;
+    private static final int CLAN_MEMBERS_CACHE_EXPIRY_MINUTES = 1;
+
     private final ClanMemberRepository repository;
 
     private final Map<Long, List<UUID>> clanIdToMemberUuidCache;
@@ -40,8 +44,8 @@ public class ClanMemberServiceImpl implements ClanMemberService {
         clanIdToMemberUuidCache = new ConcurrentHashMap<>();
 
         memberByUuidCache = Caffeine.newBuilder()
-            .expireAfterWrite(5, TimeUnit.MINUTES)
-            .maximumSize(5_000)
+            .expireAfterWrite(MEMBER_CACHE_EXPIRY_MINUTES, TimeUnit.MINUTES)
+            .maximumSize(MEMBER_CACHE_SIZE)
             .removalListener(new ClanMemberCacheRemovalListener(clanIdToMemberUuidCache))
             .buildAsync((memberUuid, _) -> repository.findByUuid(memberUuid)
                 .thenApply(Optional::ofNullable)
@@ -54,8 +58,8 @@ public class ClanMemberServiceImpl implements ClanMemberService {
                 .toCompletableFuture());
 
         membersByClanCache = Caffeine.newBuilder()
-            .expireAfterWrite(1, TimeUnit.MINUTES)
-            .maximumSize(5_000)
+            .expireAfterWrite(CLAN_MEMBERS_CACHE_EXPIRY_MINUTES, TimeUnit.MINUTES)
+            .maximumSize(MEMBER_CACHE_SIZE)
             .buildAsync((clanId, _) -> repository.findByClanId(clanId).toCompletableFuture());
 
         clanDeleteObserver = new ClanMemberCacheInvalidationListener(

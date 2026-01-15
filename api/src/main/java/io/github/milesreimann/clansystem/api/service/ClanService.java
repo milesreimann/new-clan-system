@@ -1,9 +1,7 @@
 package io.github.milesreimann.clansystem.api.service;
 
 import io.github.milesreimann.clansystem.api.entity.Clan;
-import io.github.milesreimann.clansystem.api.observer.ClanDeleteObserver;
 
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
 
@@ -29,6 +27,4 @@ public interface ClanService {
     CompletionStage<Boolean> existsClanWithName(String name);
 
     CompletionStage<Boolean> existsClanWithTag(String tag);
-
-    void registerDeleteObserver(ClanDeleteObserver observer);
 }

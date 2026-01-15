@@ -19,7 +19,11 @@ public class ClanRoleCacheRemovalListener implements RemovalListener<Long, Optio
     private final Map<Long, Set<Long>> clanIdToRoleIdCache;
 
     @Override
-    public void onRemoval(@Nullable Long roleId, @Nullable Optional<ClanRole> optionalClanRole, RemovalCause cause) {
+    public void onRemoval(
+        @Nullable Long roleId,
+        @Nullable Optional<ClanRole> optionalClanRole,
+        RemovalCause cause
+    ) {
         if (cause != RemovalCause.EXPIRED || roleId == null) {
             return;
         }

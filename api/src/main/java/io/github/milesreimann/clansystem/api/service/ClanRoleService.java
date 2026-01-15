@@ -1,8 +1,6 @@
 package io.github.milesreimann.clansystem.api.service;
 
 import io.github.milesreimann.clansystem.api.entity.ClanRole;
-import io.github.milesreimann.clansystem.api.observer.ClanRoleDeleteObserver;
-import io.github.milesreimann.clansystem.api.observer.ClanRoleInheritObserver;
 
 import java.util.List;
 import java.util.concurrent.CompletionStage;
@@ -27,8 +25,4 @@ public interface ClanRoleService {
     CompletionStage<List<ClanRole>> listRoleInheritanceHierarchy(long roleId);
 
     CompletionStage<Boolean> isRoleHigher(long roleId, long targetRoleId);
-
-    void registerDeleteObserver(ClanRoleDeleteObserver observer);
-
-    void registerInheritObserver(ClanRoleInheritObserver observer);
 }

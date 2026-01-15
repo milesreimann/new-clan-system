@@ -18,7 +18,11 @@ public class ClanRolePermissionCacheRemovalListener implements RemovalListener<H
     private final Map<Long, Set<HasPermissionCacheKey>> hasPermissionCacheKeys;
 
     @Override
-    public void onRemoval(@Nullable HasPermissionCacheKey key, @Nullable Boolean hasPermission, RemovalCause cause) {
+    public void onRemoval(
+        @Nullable HasPermissionCacheKey key,
+        @Nullable Boolean hasPermission,
+        RemovalCause cause
+    ) {
         if (cause != RemovalCause.EXPIRED || key == null) {
             return;
         }

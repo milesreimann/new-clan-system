@@ -68,6 +68,7 @@ public class ClanSystemPlugin extends Plugin {
         clanService.registerDeleteObserver(clanMemberService.getClanDeleteObserver());
         clanService.registerDeleteObserver(clanRoleService.getClanDeleteObserver());
         clanRoleService.registerDeleteObserver(clanRolePermissionService.getClanRoleDeleteObserver());
+        clanRoleService.registerInheritObserver(clanRolePermissionService.getClanRoleInheritObserver());
 
         getProxy().getPluginManager().registerCommand(this, new ClanCommand(this));
     }

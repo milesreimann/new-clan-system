@@ -1,4 +1,4 @@
-package io.github.milesreimann.clansystem.api.observer;
+package io.github.milesreimann.clansystem.bungee.observer;
 
 /**
  * @author Miles R.

@@ -2,8 +2,8 @@ package io.github.milesreimann.clansystem.bungee.listener;
 
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import io.github.milesreimann.clansystem.api.entity.ClanRolePermission;
-import io.github.milesreimann.clansystem.api.observer.ClanRoleDeleteObserver;
-import io.github.milesreimann.clansystem.api.observer.ClanRoleInheritObserver;
+import io.github.milesreimann.clansystem.bungee.observer.ClanRoleDeleteObserver;
+import io.github.milesreimann.clansystem.bungee.observer.ClanRoleInheritObserver;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;

@@ -3,9 +3,9 @@ package io.github.milesreimann.clansystem.bungee.service;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.github.milesreimann.clansystem.api.entity.ClanRole;
-import io.github.milesreimann.clansystem.api.observer.ClanDeleteObserver;
-import io.github.milesreimann.clansystem.api.observer.ClanRoleDeleteObserver;
-import io.github.milesreimann.clansystem.api.observer.ClanRoleInheritObserver;
+import io.github.milesreimann.clansystem.bungee.observer.ClanDeleteObserver;
+import io.github.milesreimann.clansystem.bungee.observer.ClanRoleDeleteObserver;
+import io.github.milesreimann.clansystem.bungee.observer.ClanRoleInheritObserver;
 import io.github.milesreimann.clansystem.api.service.ClanRoleService;
 import io.github.milesreimann.clansystem.bungee.entity.ClanRoleImpl;
 import io.github.milesreimann.clansystem.bungee.listener.ClanRoleCacheInvalidationListener;
@@ -29,6 +29,9 @@ import java.util.stream.Collectors;
  * @since 29.11.2025
  */
 public class ClanRoleServiceImpl implements ClanRoleService {
+    private static final int CACHE_SIZE = 5_000;
+    private static final int CACHE_EXPIRY_MINUTES = 10;
+
     private final ClanRoleRepository repository;
 
     private final Map<Long, Set<Long>> clanIdToRoleIdCache;
@@ -46,18 +49,21 @@ public class ClanRoleServiceImpl implements ClanRoleService {
         clanIdToRoleIdCache = new ConcurrentHashMap<>();
 
         roleByIdCache = Caffeine.newBuilder()
-            .maximumSize(5_000)
-            .expireAfterWrite(10, TimeUnit.MINUTES)
+            .maximumSize(CACHE_SIZE)
+            .expireAfterWrite(CACHE_EXPIRY_MINUTES, TimeUnit.MINUTES)
             .removalListener(new ClanRoleCacheRemovalListener(clanIdToRoleIdCache))
             .buildAsync((clanRoleId, _) -> repository.findById(clanRoleId)
                 .thenApply(Optional::ofNullable)
                 .thenApply(optionalClanRole -> {
                     optionalClanRole.ifPresent(clanRole -> clanIdToRoleIdCache
                         .computeIfAbsent(clanRole.getClan(), _ -> ConcurrentHashMap.newKeySet())
-                        .add(clanRole.getId()));
+                        .add(clanRole.getId())
+                    );
+
                     return optionalClanRole;
                 })
-                .toCompletableFuture());
+                .toCompletableFuture()
+            );
 
         rolesByClanCache = Caffeine.newBuilder()
             .maximumSize(5_000)
@@ -148,12 +154,10 @@ public class ClanRoleServiceImpl implements ClanRoleService {
             });
     }
 
-    @Override
     public void registerDeleteObserver(ClanRoleDeleteObserver observer) {
         deleteObservers.add(observer);
     }
 
-    @Override
     public void registerInheritObserver(ClanRoleInheritObserver observer) {
         inheritObservers.add(observer);
     }

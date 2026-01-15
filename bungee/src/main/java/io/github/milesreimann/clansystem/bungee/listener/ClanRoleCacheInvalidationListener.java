@@ -2,7 +2,7 @@ package io.github.milesreimann.clansystem.bungee.listener;
 
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import io.github.milesreimann.clansystem.api.entity.ClanRole;
-import io.github.milesreimann.clansystem.api.observer.ClanDeleteObserver;
+import io.github.milesreimann.clansystem.bungee.observer.ClanDeleteObserver;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;

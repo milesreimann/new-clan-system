@@ -20,7 +20,11 @@ public class ClanMemberCacheRemovalListener implements RemovalListener<UUID, Opt
     private final Map<Long, List<UUID>> clanIdToMemberUuidCache;
 
     @Override
-    public void onRemoval(@Nullable UUID memberUuid, @Nullable Optional<ClanMember> optionalClanMember, RemovalCause cause) {
+    public void onRemoval(
+        @Nullable UUID memberUuid,
+        @Nullable Optional<ClanMember> optionalClanMember,
+        RemovalCause cause
+    ) {
         if (cause != RemovalCause.EXPIRED || memberUuid == null) {
             return;
         }

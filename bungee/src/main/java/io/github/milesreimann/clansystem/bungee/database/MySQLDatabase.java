@@ -60,10 +60,8 @@ public class MySQLDatabase {
     public void disconnect() {
         if (isConnected()) {
             executorService.shutdown();
-
             dataSource.close();
             dataSource = null;
-
             connected = false;
 
             log.info("Disconnected from MySQL database.");
@@ -73,80 +71,89 @@ public class MySQLDatabase {
     public CompletableFuture<Long> insert(String sql, Object... args) {
         ensureDatabaseIsConnected();
 
-        return CompletableFuture.supplyAsync(() -> {
-            try (Connection connection = dataSource.getConnection();
-                 PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-                bindStatementParameters(statement, args);
+        return CompletableFuture.supplyAsync(
+            () -> {
+                try (Connection connection = dataSource.getConnection();
+                     PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                    bindStatementParameters(statement, args);
 
-                int affectedRows = statement.executeUpdate();
-                if (affectedRows == 0) {
-                    throw new SQLException("Insert failed, no rows affected.");
-                }
-
-                try (ResultSet generatedKeys = statement.getGeneratedKeys()) {
-                    if (!generatedKeys.next()) {
-                        throw new SQLException("Insert failed, no ID obtained.");
+                    int affectedRows = statement.executeUpdate();
+                    if (affectedRows == 0) {
+                        throw new SQLException("Insert failed, no rows affected.");
                     }
 
-                    return generatedKeys.getLong(1);
+                    try (ResultSet generatedKeys = statement.getGeneratedKeys()) {
+                        if (!generatedKeys.next()) {
+                            throw new SQLException("Insert failed, no ID obtained.");
+                        }
+
+                        return generatedKeys.getLong(1);
+                    }
+                } catch (SQLException e) {
+                    log.log(Level.SEVERE, e, () -> "Failed to execute insert query: " + sql);
+                    throw new CompletionException(e);
                 }
-            } catch (SQLException e) {
-                log.log(Level.SEVERE, e, () -> "Failed to execute insert query: " + sql);
-                throw new CompletionException(e);
-            }
-        }, executorService);
+            },
+            executorService
+        );
     }
 
     public CompletableFuture<Integer> update(String sql, Object... args) {
         ensureDatabaseIsConnected();
 
-        return CompletableFuture.supplyAsync(() -> {
-            try (Connection connection = dataSource.getConnection();
-                 PreparedStatement statement = createStatement(connection, sql, args)
-            ) {
-                return statement.executeUpdate();
-            } catch (SQLException e) {
-                log.log(Level.SEVERE, e, () -> "Failed to execute update: " + sql);
-                throw new CompletionException(e);
-            }
-        }, executorService);
+        return CompletableFuture.supplyAsync(
+            () -> {
+                try (Connection connection = dataSource.getConnection();
+                     PreparedStatement statement = createStatement(connection, sql, args)
+                ) {
+                    return statement.executeUpdate();
+                } catch (SQLException e) {
+                    log.log(Level.SEVERE, e, () -> "Failed to execute update: " + sql);
+                    throw new CompletionException(e);
+                }
+            },
+            executorService
+        );
     }
 
     public CompletionStage<QueryResult> query(String sql, Object... args) {
         ensureDatabaseIsConnected();
 
-        return CompletableFuture.supplyAsync(() -> {
-            try (Connection connection = dataSource.getConnection();
-                 PreparedStatement statement = createStatement(connection, sql, args);
-                 ResultSet resultSet = statement.executeQuery()
-            ) {
-                ResultSetMetaData resultMeta = resultSet.getMetaData();
-                int columnCount = resultMeta.getColumnCount();
+        return CompletableFuture.supplyAsync(
+            () -> {
+                try (Connection connection = dataSource.getConnection();
+                     PreparedStatement statement = createStatement(connection, sql, args);
+                     ResultSet resultSet = statement.executeQuery()
+                ) {
+                    ResultSetMetaData resultMeta = resultSet.getMetaData();
+                    int columnCount = resultMeta.getColumnCount();
 
-                List<String> columnNames = new ArrayList<>(columnCount);
-                for (int i = 1; i <= columnCount; i++) {
-                    columnNames.add(resultMeta.getColumnName(i));
-                }
-
-                List<QueryRow> rows = new ArrayList<>();
-
-                while (resultSet.next()) {
-                    Map<String, Object> columnValues = new LinkedHashMap<>(columnCount);
-
-                    for (String columnName : columnNames) {
-                        Object value = resultSet.getObject(columnName);
-                        columnValues.put(columnName, value);
+                    List<String> columnNames = new ArrayList<>(columnCount);
+                    for (int i = 1; i <= columnCount; i++) {
+                        columnNames.add(resultMeta.getColumnName(i));
                     }
 
-                    rows.add(new QueryRow(columnValues));
+                    List<QueryRow> rows = new ArrayList<>();
+
+                    while (resultSet.next()) {
+                        Map<String, Object> columnValues = new LinkedHashMap<>(columnCount);
+
+                        for (String columnName : columnNames) {
+                            Object value = resultSet.getObject(columnName);
+                            columnValues.put(columnName, value);
+                        }
+
+                        rows.add(new QueryRow(columnValues));
+                    }
+
+                    return new QueryResult(rows);
+
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
                 }
-
-                return new QueryResult(rows);
-
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-        }, executorService);
+            },
+            executorService
+        );
     }
 
     private boolean isConnected() {
