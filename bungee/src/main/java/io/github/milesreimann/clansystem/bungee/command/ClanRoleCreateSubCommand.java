@@ -31,19 +31,28 @@ public class ClanRoleCreateSubCommand extends ClanRoleCommand {
         String name = args[0];
         long clanId = clanMember.getClan();
 
+        return processCreate(player, clanId, name)
+            .exceptionally(exception -> handleError(player, exception));
+    }
+
+    private CompletionStage<Void> processCreate(ProxiedPlayer player, long clanId, String name) {
+        return validateRoleNotExists(clanId, name)
+            .thenCompose(_ -> createRole(player, clanId, name));
+    }
+
+    private CompletionStage<Boolean> validateRoleNotExists(long clanId, String name) {
         return clanRoleService.getRoleByClanIdAndName(clanId, name)
-            .thenCompose(clanRole -> {
-                if (clanRole != null) {
-                    player.sendMessage("rolle gibts bereits");
-                    return CompletableFuture.completedStage(null);
+            .thenCompose(role -> {
+                if (role != null) {
+                    return failWithMessage("rolle gibts bereits");
                 }
 
-                return clanRoleService.createRole(clanId, name, null, null)
-                    .thenRun(() -> player.sendMessage("rolle erstellt"));
-            })
-            .exceptionally(t -> {
-                t.printStackTrace();
-                return null;
+                return CompletableFuture.completedFuture(true);
             });
+    }
+
+    private CompletionStage<Void> createRole(ProxiedPlayer player, long clanId, String name) {
+        return clanRoleService.createRole(clanId, name, null, null)
+            .thenRun(() -> player.sendMessage("rolle erstellt"));
     }
 }

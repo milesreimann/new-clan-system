@@ -3,8 +3,6 @@ package io.github.milesreimann.clansystem.bungee.command;
 import io.github.milesreimann.clansystem.api.entity.ClanMember;
 import io.github.milesreimann.clansystem.api.model.ClanPermissionType;
 import io.github.milesreimann.clansystem.api.service.ClanMemberService;
-import io.github.milesreimann.clansystem.api.service.ClanPermissionService;
-import io.github.milesreimann.clansystem.api.service.ClanRolePermissionService;
 import io.github.milesreimann.clansystem.api.service.ClanRoleService;
 import io.github.milesreimann.clansystem.bungee.ClanSystemPlugin;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
@@ -17,17 +15,14 @@ import java.util.concurrent.CompletionStage;
  * @author Miles R.
  * @since 04.12.25
  */
-public class ClanKickSubCommand implements ClanSubCommand {
-    private final ClanMemberService clanMemberService;
-    private final ClanPermissionService clanPermissionService;
-    private final ClanRolePermissionService clanRolePermissionService;
+public class ClanKickSubCommand extends AuthorizedClanSubCommand {
     private final ClanRoleService clanRoleService;
+    private final ClanMemberService clanMemberService;
 
     public ClanKickSubCommand(ClanSystemPlugin plugin) {
-        clanMemberService = plugin.getClanMemberService();
-        clanPermissionService = plugin.getClanPermissionService();
-        clanRolePermissionService = plugin.getClanRolePermissionService();
+        super(plugin);
         clanRoleService = plugin.getClanRoleService();
+        clanMemberService = plugin.getClanMemberService();
     }
 
     @Override
@@ -37,8 +32,6 @@ public class ClanKickSubCommand implements ClanSubCommand {
             return;
         }
 
-        UUID playerUuid = player.getUniqueId();
-
         UUID targetUuid;
         try {
             targetUuid = UUID.fromString(args[0]);
@@ -47,71 +40,77 @@ public class ClanKickSubCommand implements ClanSubCommand {
             return;
         }
 
-        clanMemberService.getMemberByUuid(playerUuid)
-            .thenCompose(clanMember -> {
-                if (clanMember == null) {
-                    player.sendMessage("du bist nicht in einem clan");
-                    return CompletableFuture.completedStage(null);
-                }
-
-                return clanPermissionService.getPermissionByType(ClanPermissionType.KICK_MEMBER)
-                    .thenCompose(kickPermission -> {
-                        if (kickPermission == null) {
-                            player.sendMessage("keine rechte");
-                            return CompletableFuture.completedStage(null);
-                        }
-
-                        return clanRolePermissionService.hasPermission(clanMember.getRole(), kickPermission.getId())
-                            .thenCompose(hasKickPermission -> {
-                                if (!Boolean.TRUE.equals(hasKickPermission)) {
-                                    player.sendMessage("keine rechte");
-                                    return CompletableFuture.completedStage(null);
-                                }
-
-                                if (targetUuid.equals(playerUuid)) {
-                                    player.sendMessage("du kannst dich nicht selbst kicken");
-                                    return CompletableFuture.completedStage(null);
-                                }
-
-                                return clanMemberService.getMemberByUuid(targetUuid)
-                                    .thenCompose(targetClanMember -> {
-                                        if (targetClanMember == null || !targetClanMember.getClan().equals(clanMember.getClan())) {
-                                            player.sendMessage("der spieler ist nicht im selben clan wie du");
-                                            return CompletableFuture.completedStage(null);
-                                        }
-
-                                        return clanRoleService.isRoleHigher(targetClanMember.getRole(), clanMember.getRole())
-                                            .thenCompose(isRoleHigher -> {
-                                                if (Boolean.TRUE.equals(isRoleHigher)) {
-                                                    player.sendMessage("du kannst den spieler nicht kicken");
-                                                    return CompletableFuture.completedStage(null);
-                                                }
-
-                                                return clanPermissionService.getPermissionByType(ClanPermissionType.KICK_MEMBER_BYPASS)
-                                                    .thenCompose(bypassKickPermission -> {
-                                                        if (bypassKickPermission == null) {
-                                                            return executeKick(player, targetClanMember);
-                                                        }
-
-                                                        return clanRolePermissionService.hasPermission(targetClanMember.getRole(), bypassKickPermission.getId())
-                                                            .thenCompose(hasBypassKickPermission -> {
-                                                                if (Boolean.TRUE.equals(hasBypassKickPermission)) {
-                                                                    player.sendMessage("du kannst den spieler nicht kicken");
-                                                                    return CompletableFuture.completedStage(null);
-                                                                }
-
-                                                                return executeKick(player, targetClanMember);
-                                                            });
-                                                    });
-                                            });
-                                    });
-                            });
-                    });
-            });
+        processKickRequest(player, targetUuid)
+            .exceptionally(exception -> handleError(player, exception));
     }
 
-    private CompletionStage<Void> executeKick(ProxiedPlayer player, ClanMember clanMember) {
-        return clanMemberService.leaveClan(clanMember)
+    private CompletionStage<Void> processKickRequest(ProxiedPlayer player, UUID targetUuid) {
+        return loadExecutorWithPermissions(player.getUniqueId(), ClanPermissionType.KICK_MEMBER)
+            .thenCompose(executor -> validateAndExecuteKick(player, executor, targetUuid));
+    }
+
+    private CompletionStage<Void> validateAndExecuteKick(
+        ProxiedPlayer player,
+        ClanMember executor,
+        UUID targetUuid
+    ) {
+        if (targetUuid.equals(executor.getUuid())) {
+            return failWithMessage("du kannst dich nicht selbst kicken");
+        }
+
+        return loadAndValidateTarget(executor, targetUuid)
+            .thenCompose(target -> performKick(player, target));
+    }
+
+    private CompletionStage<ClanMember> loadAndValidateTarget(ClanMember executor, UUID targetUuid) {
+        return clanMemberService.getMemberByUuid(targetUuid)
+            .thenCompose(target -> validateTargetInSameClan(executor, target))
+            .thenCompose(target -> validateRoleHierarchy(executor, target))
+            .thenCompose(this::validateBypassProtection);
+    }
+
+    private CompletableFuture<Void> performKick(ProxiedPlayer player, ClanMember target) {
+        return clanMemberService.leaveClan(target)
+            .toCompletableFuture()
             .thenRun(() -> player.sendMessage("spieler wurde gekickt"));
+    }
+
+    private CompletableFuture<ClanMember> validateTargetInSameClan(ClanMember executor, ClanMember target) {
+        if (target == null || !target.getClan().equals(executor.getClan())) {
+            return failWithMessage("Der Spieler ist nicht im selben Clan.");
+        }
+
+        return CompletableFuture.completedFuture(target);
+    }
+
+    private CompletionStage<ClanMember> validateRoleHierarchy(ClanMember executor, ClanMember target) {
+        return clanRoleService.isRoleHigher(target.getRole(), executor.getRole())
+            .thenCompose(isTargetRoleHigher -> validateRoleIsLower(target, isTargetRoleHigher));
+    }
+
+    private CompletionStage<ClanMember> validateRoleIsLower(ClanMember target, Boolean isTargetRoleHigher) {
+        if (!Boolean.TRUE.equals(isTargetRoleHigher)) {
+            return failWithMessage("du kannst kein mitglied mit höherer rolle kicken");
+        }
+
+        return CompletableFuture.completedFuture(target);
+    }
+
+    private CompletionStage<ClanMember> validateBypassProtection(ClanMember target) {
+        return clanPermissionService.getPermissionByType(ClanPermissionType.KICK_MEMBER_BYPASS)
+            .thenCompose(bypassPermission -> {
+                if (bypassPermission == null) {
+                    return failWithMessage("bypass-berechtigung existiert nicht");
+                }
+
+                return clanRolePermissionService.hasPermission(target.getRole(), bypassPermission.getId());
+            })
+            .thenCompose(hasBypassPermission -> {
+                if (Boolean.TRUE.equals(hasBypassPermission)) {
+                    return failWithMessage("du kannst den spieler nicht kicken");
+                }
+
+                return CompletableFuture.completedFuture(target);
+            });
     }
 }

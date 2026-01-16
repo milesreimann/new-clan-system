@@ -15,7 +15,7 @@ import java.util.concurrent.CompletionStage;
  */
 @RequiredArgsConstructor
 @Getter(value = AccessLevel.PROTECTED)
-public abstract class ClanRoleCommand {
+public abstract class ClanRoleCommand extends ClanCommandBase {
     private final ClanPermissionType clanPermissionType;
 
     public abstract CompletionStage<Void> execute(ProxiedPlayer player, ClanMember clanMember, String[] args);

@@ -1,6 +1,7 @@
 package io.github.milesreimann.clansystem.bungee.command;
 
 import io.github.milesreimann.clansystem.api.entity.ClanMember;
+import io.github.milesreimann.clansystem.api.entity.ClanRole;
 import io.github.milesreimann.clansystem.api.model.ClanPermissionType;
 import io.github.milesreimann.clansystem.api.service.ClanRoleService;
 import io.github.milesreimann.clansystem.bungee.ClanSystemPlugin;
@@ -32,35 +33,47 @@ public class ClanRoleInheritSubCommand extends ClanRoleCommand {
         String inheritFrom = args[1];
         long clanId = clanMember.getClan();
 
+        return processInherit(player, clanMember, clanId, name, inheritFrom)
+            .exceptionally(exception -> handleError(player, exception));
+    }
+
+    private CompletionStage<Void> processInherit(
+        ProxiedPlayer player,
+        ClanMember executor,
+        long clanId,
+        String name,
+        String inheritFrom
+    ) {
+        return loadRole(clanId, name, "rolle gibts nicht")
+            .thenCompose(role -> loadRole(clanId, inheritFrom, "die zu erbende rolle gibts nicht")
+                .thenCompose(inheritFromRole -> validateInheritRoleAllowed(executor, inheritFromRole)
+                    .thenCompose(_ -> inheritRole(player, role, inheritFromRole.getId()))));
+    }
+
+    private CompletionStage<ClanRole> loadRole(long clanId, String name, String errorMessage) {
         return clanRoleService.getRoleByClanIdAndName(clanId, name)
-            .thenCompose(clanRole -> {
-                if (clanRole == null) {
-                    player.sendMessage("rolle gibts nicht");
-                    return CompletableFuture.completedStage(null);
+            .thenCompose(role -> {
+                if (role == null) {
+                    return failWithMessage(errorMessage);
                 }
 
-                return clanRoleService.getRoleByClanIdAndName(clanId, inheritFrom)
-                    .thenCompose(inheritFromClanRole -> {
-                        if (inheritFromClanRole == null) {
-                            player.sendMessage("die zu erbende rolle gibts nicht");
-                            return CompletableFuture.completedStage(null);
-                        }
-
-                        return clanRoleService.isRoleHigher(inheritFromClanRole.getId(), clanMember.getRole())
-                            .thenCompose(isRoleHigher -> {
-                                if (Boolean.TRUE.equals(isRoleHigher)) {
-                                    player.sendMessage("die zu erbende rolle ist höher als deine");
-                                    return CompletableFuture.completedStage(null);
-                                }
-
-                                return clanRoleService.inheritRole(clanRole, inheritFromClanRole.getId())
-                                    .thenRun(() -> player.sendMessage("rolle erbt nun"));
-                            });
-                    });
-            })
-            .exceptionally(t -> {
-                t.printStackTrace();
-                return null;
+                return CompletableFuture.completedFuture(role);
             });
+    }
+
+    private CompletionStage<Boolean> validateInheritRoleAllowed(ClanMember executor, ClanRole inheritFromRole) {
+        return clanRoleService.isRoleHigher(inheritFromRole.getId(), executor.getRole())
+            .thenCompose(isRoleHigher -> {
+                if (Boolean.TRUE.equals(isRoleHigher)) {
+                    return failWithMessage("die zu erbende rolle ist höher als deine");
+                }
+
+                return CompletableFuture.completedFuture(true);
+            });
+    }
+
+    private CompletionStage<Void> inheritRole(ProxiedPlayer player, ClanRole role, Long inheritFromRoleId) {
+        return clanRoleService.inheritRole(role, inheritFromRoleId)
+            .thenRun(() -> player.sendMessage("rolle erbt nun"));
     }
 }

@@ -1,6 +1,7 @@
 package io.github.milesreimann.clansystem.bungee.command;
 
 import io.github.milesreimann.clansystem.api.entity.ClanMember;
+import io.github.milesreimann.clansystem.api.entity.ClanRole;
 import io.github.milesreimann.clansystem.api.model.ClanPermissionType;
 import io.github.milesreimann.clansystem.api.service.ClanMemberService;
 import io.github.milesreimann.clansystem.api.service.ClanPermissionService;
@@ -47,57 +48,84 @@ public class ClanRoleSetSubCommand extends ClanRoleCommand {
         }
 
         String roleName = args[1];
-        long clanId = clanMember.getClan();
 
         if (targetUuid.equals(clanMember.getUuid())) {
             player.sendMessage("du kannst deine eigene rolle nicht setzen");
             return CompletableFuture.completedStage(null);
         }
 
+        return processSetRole(player, clanMember, targetUuid, roleName)
+            .exceptionally(exception -> handleError(player, exception));
+    }
+
+    private CompletionStage<Void> processSetRole(
+        ProxiedPlayer player,
+        ClanMember executor,
+        UUID targetUuid,
+        String roleName
+    ) {
+        return loadAndValidateTarget(executor, targetUuid)
+            .thenCompose(target -> validateTargetRoleEditable(executor, target))
+            .thenCompose(this::validateSetRoleBypassProtection)
+            .thenCompose(target -> updateRole(player, target, roleName));
+    }
+
+    private CompletionStage<ClanMember> loadAndValidateTarget(ClanMember executor, UUID targetUuid) {
+        long clanId = executor.getClan();
+
         return clanMemberService.getMemberByUuid(targetUuid)
-            .thenCompose(targetClanMember -> {
-                if (targetClanMember == null || targetClanMember.getClan() != clanId) {
-                    player.sendMessage("spieler ist nicht in deinem clan");
-                    return CompletableFuture.completedStage(null);
+            .thenCompose(target -> {
+                if (target == null || target.getClan() != clanId) {
+                    return failWithMessage("spieler ist nicht in deinem clan");
                 }
 
-                return clanRoleService.isRoleHigher(targetClanMember.getRole(), clanMember.getRole())
-                    .thenCompose(isRoleHigher -> {
-                        if (Boolean.TRUE.equals(isRoleHigher)) {
-                            player.sendMessage("du kannst die rolle dieses spielers nicht anpassen");
-                            return CompletableFuture.completedStage(null);
+                return CompletableFuture.completedFuture(target);
+            });
+    }
+
+    private CompletionStage<ClanMember> validateTargetRoleEditable(ClanMember executor, ClanMember target) {
+        return clanRoleService.isRoleHigher(target.getRole(), executor.getRole())
+            .thenCompose(isTargetRoleHigher -> {
+                if (Boolean.TRUE.equals(isTargetRoleHigher)) {
+                    return failWithMessage("du kannst die rolle dieses spielers nicht anpassen");
+                }
+
+                return CompletableFuture.completedFuture(target);
+            });
+    }
+
+    private CompletionStage<ClanMember> validateSetRoleBypassProtection(ClanMember target) {
+        return clanPermissionService.getPermissionByType(ClanPermissionType.SET_ROLE_BYPASS)
+            .thenCompose(bypassPermission -> {
+                if (bypassPermission == null) {
+                    return CompletableFuture.completedFuture(target);
+                }
+
+                return clanRolePermissionService.hasPermission(target.getRole(), bypassPermission.getId())
+                    .thenCompose(hasBypass -> {
+                        if (Boolean.TRUE.equals(hasBypass)) {
+                            return failWithMessage("du kannst die rolle dieses spielers nicht anpassen");
                         }
 
-                        return clanPermissionService.getPermissionByType(ClanPermissionType.SET_ROLE_BYPASS)
-                            .thenCompose(setRoleBypassPermission -> {
-                                if (setRoleBypassPermission == null) {
-                                    return proceedRoleUpdate(player, targetClanMember, roleName);
-                                }
-
-                                return clanRolePermissionService.hasPermission(targetClanMember.getRole(), setRoleBypassPermission.getId())
-                                    .thenCompose(hasSetRoleBypassPermission -> {
-                                        if (Boolean.TRUE.equals(hasSetRoleBypassPermission)) {
-                                            player.sendMessage("du kannst die rolle dieses spielers nicht anpassen");
-                                            return CompletableFuture.completedStage(null);
-                                        }
-
-                                        return proceedRoleUpdate(player, targetClanMember, roleName);
-                                    });
-                            });
+                        return CompletableFuture.completedFuture(target);
                     });
             });
     }
 
-    private CompletionStage<Void> proceedRoleUpdate(ProxiedPlayer player, ClanMember targetClanMember, String roleName) {
-        return clanRoleService.getRoleByClanIdAndName(targetClanMember.getClan(), roleName)
-            .thenCompose(clanRole -> {
-                if (clanRole == null) {
-                    player.sendMessage("rolle gibts nicht");
-                    return CompletableFuture.completedStage(null);
+    private CompletionStage<Void> updateRole(ProxiedPlayer player, ClanMember target, String roleName) {
+        return loadRole(target.getClan(), roleName)
+            .thenCompose(role -> clanMemberService.updateRole(target, role.getId()))
+            .thenRun(() -> player.sendMessage("rolle gesetzt"));
+    }
+
+    private CompletionStage<ClanRole> loadRole(long clanId, String roleName) {
+        return clanRoleService.getRoleByClanIdAndName(clanId, roleName)
+            .thenCompose(role -> {
+                if (role == null) {
+                    return failWithMessage("rolle gibts nicht");
                 }
 
-                return clanMemberService.updateRole(targetClanMember, clanRole.getId())
-                    .thenRun(() -> player.sendMessage("rolle gesetzt"));
+                return CompletableFuture.completedFuture(role);
             });
     }
 }

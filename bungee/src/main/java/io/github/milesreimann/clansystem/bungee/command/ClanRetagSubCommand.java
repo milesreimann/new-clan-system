@@ -1,36 +1,29 @@
 package io.github.milesreimann.clansystem.bungee.command;
 
+import io.github.milesreimann.clansystem.api.entity.Clan;
+import io.github.milesreimann.clansystem.api.entity.ClanMember;
 import io.github.milesreimann.clansystem.api.model.ClanPermissionType;
-import io.github.milesreimann.clansystem.api.service.ClanMemberService;
-import io.github.milesreimann.clansystem.api.service.ClanPermissionService;
-import io.github.milesreimann.clansystem.api.service.ClanRolePermissionService;
 import io.github.milesreimann.clansystem.api.service.ClanService;
 import io.github.milesreimann.clansystem.bungee.config.MainConfig;
 import io.github.milesreimann.clansystem.bungee.ClanSystemPlugin;
-import lombok.RequiredArgsConstructor;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
 /**
  * @author Miles R.
  * @since 29.11.2025
  */
-@RequiredArgsConstructor
-public class ClanRetagSubCommand implements ClanSubCommand {
+public class ClanRetagSubCommand extends AuthorizedClanSubCommand {
     private final MainConfig config;
     private final ClanService clanService;
-    private final ClanMemberService clanMemberService;
-    private final ClanPermissionService clanPermissionService;
-    private final ClanRolePermissionService clanRolePermissionService;
 
     public ClanRetagSubCommand(ClanSystemPlugin plugin) {
+        super(plugin);
         config = plugin.getConfig();
         clanService = plugin.getClanService();
-        clanMemberService = plugin.getClanMemberService();
-        clanPermissionService = plugin.getClanPermissionService();
-        clanRolePermissionService = plugin.getClanRolePermissionService();
     }
 
     @Override
@@ -40,63 +33,77 @@ public class ClanRetagSubCommand implements ClanSubCommand {
             return;
         }
 
-        UUID playerUuid = player.getUniqueId();
         String newClanTag = args[0];
 
         if (!config.isValidClanTag(player, newClanTag)) {
             return;
         }
 
-        clanMemberService.getMemberByUuid(playerUuid)
-            .thenCompose(clanMember -> {
-                if (clanMember == null) {
-                    player.sendMessage("du bist nicht in einem clan");
-                    return CompletableFuture.completedStage(null);
+        processRetagRequest(player, player.getUniqueId(), newClanTag)
+            .exceptionally(exception -> handleError(player, exception));
+    }
+
+    private CompletionStage<Void> processRetagRequest(ProxiedPlayer player, UUID playerUuid, String newClanTag) {
+        return loadExecutorWithPermissions(playerUuid, ClanPermissionType.RETAG_CLAN)
+            .thenCompose(executor -> loadClanOrCleanup(player, executor))
+            .thenCompose(clan -> validateTagChangeAllowed(clan, newClanTag))
+            .thenCompose(clan -> ensureTagAvailable(clan, newClanTag))
+            .thenCompose(clan -> retagClan(player, clan, newClanTag));
+    }
+
+
+    private CompletionStage<Clan> loadClanOrCleanup(ProxiedPlayer player, ClanMember executor) {
+        return clanService.getClanById(executor.getClan())
+            .thenCompose(clan -> {
+                if (clan != null) {
+                    return CompletableFuture.completedFuture(clan);
                 }
 
-                return clanPermissionService.getPermissionByType(ClanPermissionType.RETAG_CLAN)
-                    .thenCompose(clanPermission -> {
-                        if (clanPermission == null) {
-                            player.sendMessage("keine rechte");
-                            return CompletableFuture.completedStage(null);
-                        }
+                player.sendMessage("du bist nicht in einem clan");
 
-                        return clanRolePermissionService.hasPermission(clanMember.getRole(), clanPermission.getId())
-                            .thenCompose(hasPermission -> {
-                                if (!Boolean.TRUE.equals(hasPermission)) {
-                                    player.sendMessage("keine rechte");
-                                    return CompletableFuture.completedStage(null);
-                                }
-
-                                return clanService.getClanById(clanMember.getClan())
-                                    .thenCompose(clan -> {
-                                        if (clan == null) {
-                                            player.sendMessage("du bist nicht in einem clan");
-                                            return clanMemberService.leaveClan(clanMember);
-                                        }
-
-                                        if (clan.getTag().equals(newClanTag)) {
-                                            player.sendMessage("tag ist gleich");
-                                            return CompletableFuture.completedStage(null);
-                                        }
-
-                                        if (clan.getTag().equalsIgnoreCase(newClanTag)) {
-                                            return clanService.retagClan(clan.getId(), newClanTag);
-                                        }
-
-                                        return clanService.getClanByTag(newClanTag)
-                                            .thenCompose(existingClan -> {
-                                                if (existingClan != null) {
-                                                    player.sendMessage("tag existiert bereits");
-                                                    return CompletableFuture.completedStage(null);
-                                                }
-
-                                                return clanService.retagClan(clan.getId(), newClanTag)
-                                                    .thenRun(() -> player.sendMessage("tag geändert"));
-                                            });
-                                    });
-                            });
-                    });
+                return clanMemberService.leaveClan(executor)
+                    .thenCompose(_ -> CompletableFuture.completedFuture(null));
             });
+    }
+
+    private CompletionStage<Clan> validateTagChangeAllowed(Clan clan, String newClanTag) {
+        if (clan == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        if (clan.getTag().equals(newClanTag)) {
+            return failWithMessage("tag ist gleich");
+        }
+
+        return CompletableFuture.completedFuture(clan);
+    }
+
+    private CompletionStage<Clan> ensureTagAvailable(Clan clan, String newClanTag) {
+        if (clan == null) {
+            return failWithMessage("clan gibts nicht");
+        }
+
+        if (clan.getTag().equalsIgnoreCase(newClanTag)) {
+            return clanService.retagClan(clan.getId(), newClanTag)
+                .thenApply(_ -> clan);
+        }
+
+        return clanService.getClanByTag(newClanTag)
+            .thenCompose(existingClan -> {
+                if (existingClan != null) {
+                    return failWithMessage("tag existiert bereits");
+                }
+
+                return CompletableFuture.completedFuture(clan);
+            });
+    }
+
+    private CompletionStage<Void> retagClan(ProxiedPlayer player, Clan clan, String newClanTag) {
+        if (clan == null) {
+            return failWithMessage("clan gibts nicht");
+        }
+
+        return clanService.retagClan(clan.getId(), newClanTag)
+            .thenRun(() -> player.sendMessage("tag geändert"));
     }
 }

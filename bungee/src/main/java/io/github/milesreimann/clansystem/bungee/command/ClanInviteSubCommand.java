@@ -1,31 +1,25 @@
 package io.github.milesreimann.clansystem.bungee.command;
 
+import io.github.milesreimann.clansystem.api.entity.ClanMember;
 import io.github.milesreimann.clansystem.api.model.ClanPermissionType;
 import io.github.milesreimann.clansystem.api.service.ClanInvitationService;
-import io.github.milesreimann.clansystem.api.service.ClanMemberService;
-import io.github.milesreimann.clansystem.api.service.ClanPermissionService;
-import io.github.milesreimann.clansystem.api.service.ClanRolePermissionService;
 import io.github.milesreimann.clansystem.bungee.ClanSystemPlugin;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
 /**
  * @author Miles R.
  * @since 09.12.25
  */
-public class ClanInviteSubCommand implements ClanSubCommand {
+public class ClanInviteSubCommand extends AuthorizedClanSubCommand {
     private final ClanInvitationService clanInvitationService;
-    private final ClanMemberService clanMemberService;
-    private final ClanPermissionService clanPermissionService;
-    private final ClanRolePermissionService clanRolePermissionService;
 
     public ClanInviteSubCommand(ClanSystemPlugin plugin) {
+        super(plugin);
         clanInvitationService = plugin.getClanInvitationService();
-        clanMemberService = plugin.getClanMemberService();
-        clanPermissionService = plugin.getClanPermissionService();
-        clanRolePermissionService = plugin.getClanRolePermissionService();
     }
 
     @Override
@@ -35,8 +29,6 @@ public class ClanInviteSubCommand implements ClanSubCommand {
             return;
         }
 
-        UUID playerUuid = player.getUniqueId();
-
         UUID targetUuid;
         try {
             targetUuid = UUID.fromString(args[0]);
@@ -45,46 +37,37 @@ public class ClanInviteSubCommand implements ClanSubCommand {
             return;
         }
 
+        processInviteRequest(player, targetUuid)
+            .exceptionally(exception -> handleError(player, exception));
+    }
 
+    private CompletionStage<Void> processInviteRequest(ProxiedPlayer player, UUID targetUuid) {
+        return loadExecutorWithPermissions(player.getUniqueId(), ClanPermissionType.SEND_INVITATION)
+            .thenCompose(executor -> validateAndSendInvite(player, executor, targetUuid));
+    }
 
-        clanMemberService.getMemberByUuid(playerUuid)
-            .thenCompose(clanMember -> {
-                if (clanMember == null) {
-                    player.sendMessage("du bist nicht in einem clan");
-                    return CompletableFuture.completedStage(null);
+    private CompletionStage<Void> validateAndSendInvite(ProxiedPlayer player, ClanMember executor, UUID targetUuid) {
+        if (targetUuid.equals(executor.getUuid())) {
+            return failWithMessage("du kannst dich nicht selbst einladen");
+        }
+
+        return validateTargetNotInClan(targetUuid)
+            .thenCompose(_ -> sendInvite(player, executor, targetUuid));
+    }
+
+    private CompletionStage<Boolean> validateTargetNotInClan(UUID targetUuid) {
+        return clanMemberService.isInClan(targetUuid)
+            .thenCompose(isInClan -> {
+                if (Boolean.TRUE.equals(isInClan)) {
+                    return failWithMessage("spieler ist bereits in einem clan");
                 }
 
-                return clanPermissionService.getPermissionByType(ClanPermissionType.SEND_INVITATION)
-                    .thenCompose(invitePermission -> {
-                        if (invitePermission == null) {
-                            player.sendMessage("keine rechte");
-                            return CompletableFuture.completedStage(null);
-                        }
-
-                        return clanRolePermissionService.hasPermission(clanMember.getRole(), invitePermission.getId())
-                            .thenCompose(hasInvitePermission -> {
-                                if (!Boolean.TRUE.equals(hasInvitePermission)) {
-                                    player.sendMessage("keine rechte");
-                                    return CompletableFuture.completedStage(null);
-                                }
-
-                                if (targetUuid.equals(playerUuid)) {
-                                    player.sendMessage("du kannst dich nicht selbst einladen");
-                                    return CompletableFuture.completedStage(null);
-                                }
-
-                                return clanMemberService.isInClan(targetUuid)
-                                    .thenCompose(isTargetInClan -> {
-                                        if (Boolean.TRUE.equals(isTargetInClan)) {
-                                            player.sendMessage("spieler ist bereits in einem clan");
-                                            return CompletableFuture.completedStage(null);
-                                        }
-
-                                        return clanInvitationService.sendInvitation(clanMember.getClan(), clanMember.getClan(), targetUuid)
-                                            .thenRun(() -> player.sendMessage("einladung versendet"));
-                                    });
-                            });
-                    });
+                return CompletableFuture.completedFuture(true);
             });
+    }
+
+    private CompletionStage<Void> sendInvite(ProxiedPlayer player, ClanMember executor, UUID targetUuid) {
+        return clanInvitationService.sendInvitation(executor.getClan(), executor.getClan(), targetUuid)
+            .thenRun(() -> player.sendMessage("einladung versendet"));
     }
 }
