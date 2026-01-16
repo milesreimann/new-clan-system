@@ -43,13 +43,13 @@ public class ClanCommand extends Command {
         }
 
         if (args.length == 0) {
-            // help
+            plugin.sendMessage(player, "clan-help-page-1");
             return;
         }
 
         ClanSubCommand subCommand = subCommands.get(args[0].toLowerCase(Locale.ROOT));
         if (subCommand == null) {
-            // help
+            plugin.sendMessage(player, "clan-help-page-1");
             return;
         }
 

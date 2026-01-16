@@ -24,7 +24,7 @@ public class ClanDenySubCommand extends AuthorizedClanSubCommand {
     @Override
     public void execute(ProxiedPlayer player, String[] args) {
         if (args.length == 0) {
-            // help
+            plugin.sendMessage(player, "clan-help-page-1");
             return;
         }
 
@@ -32,7 +32,7 @@ public class ClanDenySubCommand extends AuthorizedClanSubCommand {
         try {
             targetUuid = UUID.fromString(args[0]);
         } catch (IllegalArgumentException e) {
-            player.sendMessage("ungültige uuid");
+            plugin.sendMessage(player, "invalid-uuid");
             return;
         }
 
@@ -47,6 +47,6 @@ public class ClanDenySubCommand extends AuthorizedClanSubCommand {
 
     private CompletionStage<Void> denyJoinRequest(ProxiedPlayer player, ClanMember executor, UUID targetUuid) {
         return clanJoinRequestService.denyJoinRequest(targetUuid, executor.getClan())
-            .thenRun(() -> player.sendMessage("anfrage abgelehnt"));
+            .thenRun(() -> plugin.sendMessage(player, "clan-join-request-denied"));
     }
 }

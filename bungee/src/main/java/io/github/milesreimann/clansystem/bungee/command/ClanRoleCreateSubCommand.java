@@ -17,14 +17,14 @@ public class ClanRoleCreateSubCommand extends ClanRoleCommand {
     private final ClanRoleService clanRoleService;
 
     public ClanRoleCreateSubCommand(ClanSystemPlugin plugin) {
-        super(ClanPermissionType.CREATE_ROLE);
+        super(plugin, ClanPermissionType.CREATE_ROLE);
         clanRoleService = plugin.getClanRoleService();
     }
 
     @Override
     public CompletionStage<Void> execute(ProxiedPlayer player, ClanMember clanMember, String[] args) {
         if (args.length == 0) {
-            // help
+            plugin.sendMessage(player, "clan-help-page-1");
             return CompletableFuture.completedStage(null);
         }
 
@@ -44,7 +44,7 @@ public class ClanRoleCreateSubCommand extends ClanRoleCommand {
         return clanRoleService.getRoleByClanIdAndName(clanId, name)
             .thenCompose(role -> {
                 if (role != null) {
-                    return failWithMessage("rolle gibts bereits");
+                    return failWithMessage("clan-role-not-found");
                 }
 
                 return CompletableFuture.completedFuture(true);
@@ -53,6 +53,6 @@ public class ClanRoleCreateSubCommand extends ClanRoleCommand {
 
     private CompletionStage<Void> createRole(ProxiedPlayer player, long clanId, String name) {
         return clanRoleService.createRole(clanId, name, null, null)
-            .thenRun(() -> player.sendMessage("rolle erstellt"));
+            .thenRun(() -> plugin.sendMessage(player, "clan-role-created", name));
     }
 }

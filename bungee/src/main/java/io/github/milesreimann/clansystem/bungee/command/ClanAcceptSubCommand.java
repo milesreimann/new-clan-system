@@ -25,7 +25,7 @@ public class ClanAcceptSubCommand extends AuthorizedClanSubCommand {
     @Override
     public void execute(ProxiedPlayer player, String[] args) {
         if (args.length == 0) {
-            // help
+            plugin.sendMessage(player, "clan-help-page-1");
             return;
         }
 
@@ -33,7 +33,7 @@ public class ClanAcceptSubCommand extends AuthorizedClanSubCommand {
         try {
             targetUuid = UUID.fromString(args[0]);
         } catch (IllegalArgumentException e) {
-            player.sendMessage("ungültige uuid");
+            plugin.sendMessage(player, "invalid-uuid");
             return;
         }
 
@@ -54,7 +54,7 @@ public class ClanAcceptSubCommand extends AuthorizedClanSubCommand {
         return clanMemberService.isInClan(targetUuid)
             .thenCompose(isInClan -> {
                 if (Boolean.TRUE.equals(isInClan)) {
-                    player.sendMessage("spieler ist bereits in eienm clan");
+                    plugin.sendMessage(player, "player-already-in-clan");
                     return clanJoinRequestService.denyJoinRequest(targetUuid, executor.getClan());
                 }
 
@@ -70,7 +70,7 @@ public class ClanAcceptSubCommand extends AuthorizedClanSubCommand {
 
     private CompletionStage<ClanMember> validateExecutorInClan(ClanMember executor) {
         if (executor == null) {
-            return failWithMessage("du bist nicht in einem clan");
+            return failWithMessage("no-clan");
         }
 
         return CompletableFuture.completedStage(executor);
@@ -84,6 +84,6 @@ public class ClanAcceptSubCommand extends AuthorizedClanSubCommand {
 
     private CompletionStage<Void> acceptJoinRequest(ProxiedPlayer player, ClanMember executor, UUID targetUuid) {
         return clanJoinRequestService.acceptJoinRequest(targetUuid, executor.getClan())
-            .thenRun(() -> player.sendMessage("anfrage wurde angenommen"));
+            .thenRun(() -> plugin.sendMessage(player, "clan-join-request-accept", targetUuid));
     }
 }

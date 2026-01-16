@@ -4,7 +4,6 @@ import io.github.milesreimann.clansystem.api.entity.Clan;
 import io.github.milesreimann.clansystem.api.entity.ClanMember;
 import io.github.milesreimann.clansystem.api.model.ClanPermissionType;
 import io.github.milesreimann.clansystem.api.service.ClanService;
-import io.github.milesreimann.clansystem.bungee.config.MainConfig;
 import io.github.milesreimann.clansystem.bungee.ClanSystemPlugin;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 
@@ -17,25 +16,23 @@ import java.util.concurrent.CompletionStage;
  * @since 29.11.2025
  */
 public class ClanRenameSubCommand extends AuthorizedClanSubCommand {
-    private final MainConfig config;
     private final ClanService clanService;
 
     public ClanRenameSubCommand(ClanSystemPlugin plugin) {
         super(plugin);
-        config = plugin.getConfig();
         clanService = plugin.getClanService();
     }
 
     @Override
     public void execute(ProxiedPlayer player, String[] args) {
         if (args.length == 0) {
-            // help
+            plugin.sendMessage(player, "clan-help-page-1");
             return;
         }
 
         String newClanName = args[0];
 
-        if (!config.isValidClanName(player, newClanName)) {
+        if (!plugin.getClanNameValidator().validate(player, newClanName)) {
             return;
         }
 
@@ -58,7 +55,7 @@ public class ClanRenameSubCommand extends AuthorizedClanSubCommand {
                     return CompletableFuture.completedFuture(clan);
                 }
 
-                player.sendMessage("du bist nicht in einem clan");
+                plugin.sendMessage(player, "no-clan");
 
                 return clanMemberService.leaveClan(executor)
                     .thenCompose(_ -> CompletableFuture.completedFuture(null));
@@ -67,11 +64,11 @@ public class ClanRenameSubCommand extends AuthorizedClanSubCommand {
 
     private CompletionStage<Clan> validateNameChangeAllowed(Clan clan, String newClanName) {
         if (clan == null) {
-            return failWithMessage("clan gibts nicht");
+            return failWithMessage("clan-not-found");
         }
 
         if (clan.getName().equals(newClanName)) {
-            return failWithMessage("name ist gleich");
+            return failWithMessage("clan-rename-no-change");
         }
 
         return CompletableFuture.completedFuture(clan);
@@ -79,7 +76,7 @@ public class ClanRenameSubCommand extends AuthorizedClanSubCommand {
 
     private CompletionStage<Clan> ensureNameAvailable(Clan clan, String newClanName) {
         if (clan == null) {
-            return failWithMessage("clan gibts nicht");
+            return failWithMessage("clan-not-found");
         }
 
         if (clan.getName().equalsIgnoreCase(newClanName)) {
@@ -90,7 +87,7 @@ public class ClanRenameSubCommand extends AuthorizedClanSubCommand {
         return clanService.getClanByName(newClanName)
             .thenCompose(existingClan -> {
                 if (existingClan != null) {
-                    return failWithMessage("name existiert bereits");
+                    return failWithMessage("clan-already-exists");
                 }
 
                 return CompletableFuture.completedFuture(clan);
@@ -99,10 +96,10 @@ public class ClanRenameSubCommand extends AuthorizedClanSubCommand {
 
     private CompletionStage<Void> renameClan(ProxiedPlayer player, Clan clan, String newClanName) {
         if (clan == null) {
-            return failWithMessage("clan gibts nicht");
+            return failWithMessage("clan-not-found");
         }
 
         return clanService.renameClan(clan.getId(), newClanName)
-            .thenRun(() -> player.sendMessage("name"));
+            .thenRun(() -> plugin.sendMessage(player, "clan-renamed", newClanName));
     }
 }

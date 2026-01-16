@@ -1,3 +1,4 @@
 rootProject.name = 'clan-system'
 include 'api'
 include 'bungee'
+include 'i18n'

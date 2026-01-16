@@ -20,6 +20,7 @@ public class ClanDeleteSubCommand extends ClanSubCommand {
     private final ClanMemberService clanMemberService;
 
     public ClanDeleteSubCommand(ClanSystemPlugin plugin) {
+        super(plugin);
         clanService = plugin.getClanService();
         clanMemberService = plugin.getClanMemberService();
     }
@@ -27,7 +28,7 @@ public class ClanDeleteSubCommand extends ClanSubCommand {
     @Override
     public void execute(ProxiedPlayer player, String[] args) {
         if (args.length == 0 || !args[0].equalsIgnoreCase("confirm")) {
-            player.sendMessage("/clan delete confirm");
+            plugin.sendMessage(player, "clan-delete-confirm");
             return;
         }
 
@@ -46,7 +47,7 @@ public class ClanDeleteSubCommand extends ClanSubCommand {
         return clanMemberService.getMemberByUuid(playerUuid)
             .thenCompose(member -> {
                 if (member == null) {
-                    return failWithMessage("du bist nicht in einem clan");
+                    return failWithMessage("no-clan");
                 }
 
                 return CompletableFuture.completedStage(member);
@@ -74,7 +75,7 @@ public class ClanDeleteSubCommand extends ClanSubCommand {
 
     private CompletionStage<Void> validateOwnershipAndExecuteDelete(ProxiedPlayer player, Clan clan, UUID playerUuid) {
         if (!clan.getOwner().equals(playerUuid)) {
-            return failWithMessage("nur der owner kann den clan löschen");
+            return failWithMessage("clan-delete-only-owner");
         }
 
         return deleteClan(player, clan);
@@ -82,6 +83,6 @@ public class ClanDeleteSubCommand extends ClanSubCommand {
 
     private CompletionStage<Void> deleteClan(ProxiedPlayer player, Clan clan) {
         return clanService.deleteClan(clan)
-            .thenRun(() -> player.sendMessage("clan wurde gelöscht"));
+            .thenRun(() -> plugin.sendMessage(player, "clan-deleted"));
     }
 }

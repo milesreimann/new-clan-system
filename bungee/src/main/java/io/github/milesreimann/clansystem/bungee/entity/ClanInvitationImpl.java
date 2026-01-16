@@ -13,7 +13,7 @@ import java.util.UUID;
 @Data
 public class ClanInvitationImpl implements ClanInvitation {
     private final Long clan;
-    private final Long sender;
+    private final UUID sender;
     private final UUID recipient;
     private final Instant timestamp;
 }

@@ -21,6 +21,7 @@ public class ClanRequestSubCommand extends ClanSubCommand {
     private final ClanMemberService clanMemberService;
 
     public ClanRequestSubCommand(ClanSystemPlugin plugin) {
+        super(plugin);
         clanJoinRequestService = plugin.getClanJoinRequestService();
         clanService = plugin.getClanService();
         clanMemberService = plugin.getClanMemberService();
@@ -29,7 +30,7 @@ public class ClanRequestSubCommand extends ClanSubCommand {
     @Override
     public void execute(ProxiedPlayer player, String[] args) {
         if (args.length == 0) {
-            // help
+            plugin.sendMessage(player, "clan-help-page-1");
             return;
         }
 
@@ -49,7 +50,7 @@ public class ClanRequestSubCommand extends ClanSubCommand {
         return clanMemberService.isInClan(playerUuid)
             .thenCompose(isInClan -> {
                 if (Boolean.TRUE.equals(isInClan)) {
-                    return failWithMessage("bereits in einem clan");
+                    return failWithMessage("already-in-clan");
                 }
 
                 return CompletableFuture.completedFuture(true);
@@ -60,7 +61,7 @@ public class ClanRequestSubCommand extends ClanSubCommand {
         return clanService.getClanByName(clanName)
             .thenCompose(clan -> {
                 if (clan == null) {
-                    return failWithMessage("clan gibts nicht");
+                    return failWithMessage("clan-not-found");
                 }
 
                 return CompletableFuture.completedFuture(clan);
@@ -69,6 +70,6 @@ public class ClanRequestSubCommand extends ClanSubCommand {
 
     private CompletionStage<Void> sendJoinRequest(ProxiedPlayer player, UUID playerUuid, Clan clan) {
         return clanJoinRequestService.sendJoinRequest(playerUuid, clan.getId())
-            .thenRun(() -> player.sendMessage("bereitsanfrage verschickt"));
+            .thenRun(() -> plugin.sendMessage(player, "clan-request-sent", clan.getName()));
     }
 }

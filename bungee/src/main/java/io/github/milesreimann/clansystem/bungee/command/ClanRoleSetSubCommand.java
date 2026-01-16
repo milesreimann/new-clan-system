@@ -25,7 +25,7 @@ public class ClanRoleSetSubCommand extends ClanRoleCommand {
     private final ClanRolePermissionService clanRolePermissionService;
 
     public ClanRoleSetSubCommand(ClanSystemPlugin plugin) {
-        super(ClanPermissionType.SET_ROLE);
+        super(plugin, ClanPermissionType.SET_ROLE);
         clanRoleService = plugin.getClanRoleService();
         clanMemberService = plugin.getClanMemberService();
         clanPermissionService = plugin.getClanPermissionService();
@@ -35,7 +35,7 @@ public class ClanRoleSetSubCommand extends ClanRoleCommand {
     @Override
     public CompletionStage<Void> execute(ProxiedPlayer player, ClanMember clanMember, String[] args) {
         if (args.length < 2) {
-            // help
+            plugin.sendMessage(player, "clan-help-page-1");
             return CompletableFuture.completedStage(null);
         }
 
@@ -43,14 +43,14 @@ public class ClanRoleSetSubCommand extends ClanRoleCommand {
         try {
             targetUuid = UUID.fromString(args[0]);
         } catch (IllegalArgumentException e) {
-            player.sendMessage("ungültige uuid");
+            plugin.sendMessage(player, "invalid-uuid");
             return CompletableFuture.completedStage(null);
         }
 
         String roleName = args[1];
 
         if (targetUuid.equals(clanMember.getUuid())) {
-            player.sendMessage("du kannst deine eigene rolle nicht setzen");
+            plugin.sendMessage(player, "clan-role-set-self");
             return CompletableFuture.completedStage(null);
         }
 
@@ -76,7 +76,7 @@ public class ClanRoleSetSubCommand extends ClanRoleCommand {
         return clanMemberService.getMemberByUuid(targetUuid)
             .thenCompose(target -> {
                 if (target == null || target.getClan() != clanId) {
-                    return failWithMessage("spieler ist nicht in deinem clan");
+                    return failWithMessage("player-not-in-clan");
                 }
 
                 return CompletableFuture.completedFuture(target);
@@ -87,7 +87,7 @@ public class ClanRoleSetSubCommand extends ClanRoleCommand {
         return clanRoleService.isRoleHigher(target.getRole(), executor.getRole())
             .thenCompose(isTargetRoleHigher -> {
                 if (Boolean.TRUE.equals(isTargetRoleHigher)) {
-                    return failWithMessage("du kannst die rolle dieses spielers nicht anpassen");
+                    return failWithMessage("clan-role-set-target-role-higher");
                 }
 
                 return CompletableFuture.completedFuture(target);
@@ -104,7 +104,7 @@ public class ClanRoleSetSubCommand extends ClanRoleCommand {
                 return clanRolePermissionService.hasPermission(target.getRole(), bypassPermission.getId())
                     .thenCompose(hasBypass -> {
                         if (Boolean.TRUE.equals(hasBypass)) {
-                            return failWithMessage("du kannst die rolle dieses spielers nicht anpassen");
+                            return failWithMessage("clan-role-set-target-bypass");
                         }
 
                         return CompletableFuture.completedFuture(target);
@@ -115,14 +115,14 @@ public class ClanRoleSetSubCommand extends ClanRoleCommand {
     private CompletionStage<Void> updateRole(ProxiedPlayer player, ClanMember target, String roleName) {
         return loadRole(target.getClan(), roleName)
             .thenCompose(role -> clanMemberService.updateRole(target, role.getId()))
-            .thenRun(() -> player.sendMessage("rolle gesetzt"));
+            .thenRun(() -> plugin.sendMessage(player, "clan-role-set", target.getUuid(), roleName));
     }
 
     private CompletionStage<ClanRole> loadRole(long clanId, String roleName) {
         return clanRoleService.getRoleByClanIdAndName(clanId, roleName)
             .thenCompose(role -> {
                 if (role == null) {
-                    return failWithMessage("rolle gibts nicht");
+                    return failWithMessage("clan-role-not-found");
                 }
 
                 return CompletableFuture.completedFuture(role);

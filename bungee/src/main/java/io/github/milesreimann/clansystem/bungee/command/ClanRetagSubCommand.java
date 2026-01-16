@@ -17,25 +17,23 @@ import java.util.concurrent.CompletionStage;
  * @since 29.11.2025
  */
 public class ClanRetagSubCommand extends AuthorizedClanSubCommand {
-    private final MainConfig config;
     private final ClanService clanService;
 
     public ClanRetagSubCommand(ClanSystemPlugin plugin) {
         super(plugin);
-        config = plugin.getConfig();
         clanService = plugin.getClanService();
     }
 
     @Override
     public void execute(ProxiedPlayer player, String[] args) {
         if (args.length == 0) {
-            // help
+            plugin.sendMessage(player, "clan-help-page-1");
             return;
         }
 
         String newClanTag = args[0];
 
-        if (!config.isValidClanTag(player, newClanTag)) {
+        if (!plugin.getClanTagValidator().validate(player, newClanTag)) {
             return;
         }
 
@@ -59,7 +57,7 @@ public class ClanRetagSubCommand extends AuthorizedClanSubCommand {
                     return CompletableFuture.completedFuture(clan);
                 }
 
-                player.sendMessage("du bist nicht in einem clan");
+                plugin.sendMessage(player, "no-clan");
 
                 return clanMemberService.leaveClan(executor)
                     .thenCompose(_ -> CompletableFuture.completedFuture(null));
@@ -72,7 +70,7 @@ public class ClanRetagSubCommand extends AuthorizedClanSubCommand {
         }
 
         if (clan.getTag().equals(newClanTag)) {
-            return failWithMessage("tag ist gleich");
+            return failWithMessage("clan-retag-no-changes");
         }
 
         return CompletableFuture.completedFuture(clan);
@@ -80,7 +78,7 @@ public class ClanRetagSubCommand extends AuthorizedClanSubCommand {
 
     private CompletionStage<Clan> ensureTagAvailable(Clan clan, String newClanTag) {
         if (clan == null) {
-            return failWithMessage("clan gibts nicht");
+            return failWithMessage("clan-not-found");
         }
 
         if (clan.getTag().equalsIgnoreCase(newClanTag)) {
@@ -91,7 +89,7 @@ public class ClanRetagSubCommand extends AuthorizedClanSubCommand {
         return clanService.getClanByTag(newClanTag)
             .thenCompose(existingClan -> {
                 if (existingClan != null) {
-                    return failWithMessage("tag existiert bereits");
+                    return failWithMessage("clan-tag-already-exists");
                 }
 
                 return CompletableFuture.completedFuture(clan);
@@ -100,10 +98,10 @@ public class ClanRetagSubCommand extends AuthorizedClanSubCommand {
 
     private CompletionStage<Void> retagClan(ProxiedPlayer player, Clan clan, String newClanTag) {
         if (clan == null) {
-            return failWithMessage("clan gibts nicht");
+            return failWithMessage("clan-not-found");
         }
 
         return clanService.retagClan(clan.getId(), newClanTag)
-            .thenRun(() -> player.sendMessage("tag geändert"));
+            .thenRun(() -> plugin.sendMessage(player, "clan-retagged", newClanTag));
     }
 }

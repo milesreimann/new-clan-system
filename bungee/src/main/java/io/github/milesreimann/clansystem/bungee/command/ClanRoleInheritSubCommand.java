@@ -18,14 +18,14 @@ public class ClanRoleInheritSubCommand extends ClanRoleCommand {
     private final ClanRoleService clanRoleService;
 
     public ClanRoleInheritSubCommand(ClanSystemPlugin plugin) {
-        super(ClanPermissionType.INHERIT_ROLE);
+        super(plugin, ClanPermissionType.INHERIT_ROLE);
         clanRoleService = plugin.getClanRoleService();
     }
 
     @Override
     public CompletionStage<Void> execute(ProxiedPlayer player, ClanMember clanMember, String[] args) {
         if (args.length < 2) {
-            // help
+            plugin.sendMessage(player, "clan-help-page-1");
             return CompletableFuture.completedStage(null);
         }
 
@@ -44,17 +44,19 @@ public class ClanRoleInheritSubCommand extends ClanRoleCommand {
         String name,
         String inheritFrom
     ) {
-        return loadRole(clanId, name, "rolle gibts nicht")
-            .thenCompose(role -> loadRole(clanId, inheritFrom, "die zu erbende rolle gibts nicht")
+        return loadRole(clanId, name, "clan-role-not-found")
+            .thenCompose(role -> loadRole(clanId, inheritFrom, "clan-role-inherit-target-role-not-found")
                 .thenCompose(inheritFromRole -> validateInheritRoleAllowed(executor, inheritFromRole)
-                    .thenCompose(_ -> inheritRole(player, role, inheritFromRole.getId()))));
+                    .thenCompose(_ -> inheritRole(player, role, inheritFromRole))
+                )
+            );
     }
 
-    private CompletionStage<ClanRole> loadRole(long clanId, String name, String errorMessage) {
+    private CompletionStage<ClanRole> loadRole(long clanId, String name, String errorKey) {
         return clanRoleService.getRoleByClanIdAndName(clanId, name)
             .thenCompose(role -> {
                 if (role == null) {
-                    return failWithMessage(errorMessage);
+                    return failWithMessage(errorKey);
                 }
 
                 return CompletableFuture.completedFuture(role);
@@ -65,15 +67,15 @@ public class ClanRoleInheritSubCommand extends ClanRoleCommand {
         return clanRoleService.isRoleHigher(inheritFromRole.getId(), executor.getRole())
             .thenCompose(isRoleHigher -> {
                 if (Boolean.TRUE.equals(isRoleHigher)) {
-                    return failWithMessage("die zu erbende rolle ist höher als deine");
+                    return failWithMessage("clan-role-inherit-target-role-higher-than-self");
                 }
 
                 return CompletableFuture.completedFuture(true);
             });
     }
 
-    private CompletionStage<Void> inheritRole(ProxiedPlayer player, ClanRole role, Long inheritFromRoleId) {
-        return clanRoleService.inheritRole(role, inheritFromRoleId)
-            .thenRun(() -> player.sendMessage("rolle erbt nun"));
+    private CompletionStage<Void> inheritRole(ProxiedPlayer player, ClanRole role, ClanRole inheritFromRole) {
+        return clanRoleService.inheritRole(role, inheritFromRole.getId())
+            .thenRun(() -> plugin.sendMessage(player, "clan.role.inherit.success", role.getName(), inheritFromRole.getName()));
     }
 }

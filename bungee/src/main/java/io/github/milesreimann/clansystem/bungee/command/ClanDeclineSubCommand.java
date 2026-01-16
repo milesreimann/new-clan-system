@@ -28,7 +28,7 @@ public class ClanDeclineSubCommand extends ClanSubCommand {
     @Override
     public void execute(ProxiedPlayer player, String[] args) {
         if (args.length == 0) {
-            // help
+            plugin.sendMessage(player, "clan-help-page-1");
             return;
         }
 
@@ -47,7 +47,7 @@ public class ClanDeclineSubCommand extends ClanSubCommand {
         return clanService.getClanByName(clanName)
             .thenCompose(clan -> {
                 if (clan == null) {
-                    return failWithMessage("clan existiert nicht");
+                    return failWithMessage("clan-not-found");
                 }
 
                 return CompletableFuture.completedStage(clan);
@@ -59,19 +59,19 @@ public class ClanDeclineSubCommand extends ClanSubCommand {
 
         return clanInvitationService.getInvitationByClanIdForPlayer(clan.getId(), playerUuid)
             .thenCompose(this::validateInvitationExists)
-            .thenCompose(_ -> declineInvitation(player, clan.getId(), playerUuid));
+            .thenCompose(_ -> declineInvitation(player, clan, playerUuid));
     }
 
     private CompletionStage<ClanInvitation> validateInvitationExists(ClanInvitation invitation) {
         if (invitation == null) {
-            return failWithMessage("du hast keine einladung vom clan erhalten");
+            return failWithMessage("clan-no-invitation");
         }
 
         return CompletableFuture.completedStage(invitation);
     }
 
-    private CompletionStage<Void> declineInvitation(ProxiedPlayer player, Long clanId, UUID playerUuid) {
-        return clanInvitationService.declineInvitation(clanId, playerUuid)
-            .thenRun(() -> player.sendMessage("einladung abgelehnt"));
+    private CompletionStage<Void> declineInvitation(ProxiedPlayer player, Clan clan, UUID playerUuid) {
+        return clanInvitationService.declineInvitation(clan.getId(), playerUuid)
+            .thenRun(() -> plugin.sendMessage(player, "clan-invitation-declined", clan.getName()));
     }
 }

@@ -32,7 +32,7 @@ public class ClanRoleSubCommand extends AuthorizedClanSubCommand {
     @Override
     public void execute(ProxiedPlayer player, String[] args) {
         if (args.length < 1) {
-            // help
+            plugin.sendMessage(player, "clan-help-page-1");
             return;
         }
 
@@ -40,8 +40,7 @@ public class ClanRoleSubCommand extends AuthorizedClanSubCommand {
         ClanRoleCommand clanRoleCommand = clanRoleCommandMap.get(operation);
 
         if (clanRoleCommand == null) {
-            player.sendMessage("unbekannter befehl");
-            // help
+            plugin.sendMessage(player, "clan-help-page-1");
             return;
         }
 
@@ -63,7 +62,7 @@ public class ClanRoleSubCommand extends AuthorizedClanSubCommand {
 
     private CompletionStage<ClanMember> validateExecutorInClan(ClanMember clanMember) {
         if (clanMember == null) {
-            return failWithMessage("du bist in keinem clan");
+            return failWithMessage("no-clan");
         }
 
         return CompletableFuture.completedFuture(clanMember);
@@ -80,7 +79,7 @@ public class ClanRoleSubCommand extends AuthorizedClanSubCommand {
             })
             .thenCompose(hasPermission -> {
                 if (!Boolean.TRUE.equals(hasPermission)) {
-                    return failWithMessage("das darfst du nicht");
+                    return failWithMessage("clan-role-no-permission");
                 }
 
                 return CompletableFuture.completedFuture(member);

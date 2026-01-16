@@ -2,7 +2,6 @@ package io.github.milesreimann.clansystem.bungee.command;
 
 import io.github.milesreimann.clansystem.api.service.ClanMemberService;
 import io.github.milesreimann.clansystem.api.service.ClanService;
-import io.github.milesreimann.clansystem.bungee.config.MainConfig;
 import io.github.milesreimann.clansystem.bungee.ClanSystemPlugin;
 import net.md_5.bungee.api.connection.ProxiedPlayer;
 
@@ -15,12 +14,11 @@ import java.util.concurrent.CompletionStage;
  * @since 29.11.2025
  */
 public class ClanCreateSubCommand extends ClanSubCommand {
-    private final MainConfig config;
     private final ClanService clanService;
     private final ClanMemberService clanMemberService;
 
     public ClanCreateSubCommand(ClanSystemPlugin plugin) {
-        config = plugin.getConfig();
+        super(plugin);
         clanService = plugin.getClanService();
         clanMemberService = plugin.getClanMemberService();
     }
@@ -28,18 +26,18 @@ public class ClanCreateSubCommand extends ClanSubCommand {
     @Override
     public void execute(ProxiedPlayer player, String[] args) {
         if (args.length < 2) {
-            // help
+            plugin.sendMessage(player, "clan-help-page-1");
             return;
         }
 
         String clanName = args[0];
         String clanTag = args[1];
 
-        if (!config.isValidClanName(player, clanName)) {
+        if (!plugin.getClanNameValidator().validate(player, clanName)) {
             return;
         }
 
-        if (!config.isValidClanTag(player, clanTag)) {
+        if (!plugin.getClanTagValidator().validate(player, clanName)) {
             return;
         }
 
@@ -60,7 +58,7 @@ public class ClanCreateSubCommand extends ClanSubCommand {
         return clanMemberService.isInClan(playerUuid)
             .thenCompose(isInClan -> {
                 if (Boolean.TRUE.equals(isInClan)) {
-                    return failWithMessage("du bist bereits in einem clan");
+                    return failWithMessage("already-in-clan");
                 }
 
                 return CompletableFuture.completedStage(null);
@@ -79,12 +77,12 @@ public class ClanCreateSubCommand extends ClanSubCommand {
 
     private CompletionStage<Void> createClan(ProxiedPlayer player, UUID playerUuid, String clanName, String clanTag) {
         return clanService.createClan(playerUuid, clanName, clanTag)
-            .thenRun(() -> player.sendMessage("clan wurde erstellt"));
+            .thenRun(() -> plugin.sendMessage(player, "clan-created", clanName, clanTag));
     }
 
     private CompletionStage<Void> validateClanDoesNotExists(Boolean doesExist) {
         if (Boolean.TRUE.equals(doesExist)) {
-            return failWithMessage("clan existiert bereits");
+            return failWithMessage("clan-already-exists");
         }
 
         return CompletableFuture.completedStage(null);

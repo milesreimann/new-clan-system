@@ -21,7 +21,7 @@ public class ClanRoleDeleteSubCommand extends ClanRoleCommand {
     private final ClanService clanService;
 
     public ClanRoleDeleteSubCommand(ClanSystemPlugin plugin) {
-        super(ClanPermissionType.DELETE_ROLE);
+        super(plugin, ClanPermissionType.DELETE_ROLE);
         clanRoleService = plugin.getClanRoleService();
         clanService = plugin.getClanService();
     }
@@ -29,7 +29,7 @@ public class ClanRoleDeleteSubCommand extends ClanRoleCommand {
     @Override
     public CompletionStage<Void> execute(ProxiedPlayer player, ClanMember clanMember, String[] args) {
         if (args.length == 0) {
-            // help
+            plugin.sendMessage(player, "clan-help-page-1");
             return CompletableFuture.completedStage(null);
         }
 
@@ -51,7 +51,7 @@ public class ClanRoleDeleteSubCommand extends ClanRoleCommand {
         return clanService.getClanById(clanId)
             .thenCompose(clan -> {
                 if (clan == null) {
-                    return failWithMessage("clan gibts nicht");
+                    return failWithMessage("clan-not-found");
                 }
 
                 return CompletableFuture.completedFuture(clan);
@@ -62,7 +62,7 @@ public class ClanRoleDeleteSubCommand extends ClanRoleCommand {
         return clanRoleService.getRoleByClanIdAndName(clanId, name)
             .thenCompose(role -> {
                 if (role == null) {
-                    return failWithMessage("rolle gibts nicht");
+                    return failWithMessage("clan-role-not-found");
                 }
 
                 return CompletableFuture.completedFuture(role);
@@ -71,11 +71,11 @@ public class ClanRoleDeleteSubCommand extends ClanRoleCommand {
 
     private CompletionStage<ClanRole> validateRoleDeletable(Clan clan, ClanRole role) {
         if (clan.getOwnerRole().equals(role.getId())) {
-            return failWithMessage("owner rolle kann nicht gelöscht werden");
+            return failWithMessage("clan-role-delete-owner");
         }
 
         if (clan.getDefaultRole().equals(role.getId())) {
-            return failWithMessage("die standardrolle kann nicht gelöscht werden. setze eine andere rolle als standard");
+            return failWithMessage("clan-role-delete-default");
         }
 
         return CompletableFuture.completedFuture(role);
@@ -83,6 +83,6 @@ public class ClanRoleDeleteSubCommand extends ClanRoleCommand {
 
     private CompletionStage<Void> deleteRole(ProxiedPlayer player, ClanRole role) {
         return clanRoleService.deleteRole(role)
-            .thenRun(() -> player.sendMessage("rolle gelöscht"));
+            .thenRun(() -> plugin.sendMessage(player, "clan-role-deleted", role.getName()));
     }
 }

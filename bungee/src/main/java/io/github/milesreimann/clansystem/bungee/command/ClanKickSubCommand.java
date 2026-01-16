@@ -28,7 +28,7 @@ public class ClanKickSubCommand extends AuthorizedClanSubCommand {
     @Override
     public void execute(ProxiedPlayer player, String[] args) {
         if (args.length == 0) {
-            // help
+            plugin.sendMessage(player, "clan-help-page-1");
             return;
         }
 
@@ -36,7 +36,7 @@ public class ClanKickSubCommand extends AuthorizedClanSubCommand {
         try {
             targetUuid = UUID.fromString(args[0]);
         } catch (IllegalArgumentException e) {
-            player.sendMessage("ungültige uuid");
+            plugin.sendMessage(player, "invalid-uuid");
             return;
         }
 
@@ -55,7 +55,7 @@ public class ClanKickSubCommand extends AuthorizedClanSubCommand {
         UUID targetUuid
     ) {
         if (targetUuid.equals(executor.getUuid())) {
-            return failWithMessage("du kannst dich nicht selbst kicken");
+            return failWithMessage("clan-kick-self");
         }
 
         return loadAndValidateTarget(executor, targetUuid)
@@ -72,12 +72,12 @@ public class ClanKickSubCommand extends AuthorizedClanSubCommand {
     private CompletableFuture<Void> performKick(ProxiedPlayer player, ClanMember target) {
         return clanMemberService.leaveClan(target)
             .toCompletableFuture()
-            .thenRun(() -> player.sendMessage("spieler wurde gekickt"));
+            .thenRun(() -> plugin.sendMessage(player, "clan-kick-success", target.getUuid()));
     }
 
     private CompletableFuture<ClanMember> validateTargetInSameClan(ClanMember executor, ClanMember target) {
         if (target == null || !target.getClan().equals(executor.getClan())) {
-            return failWithMessage("Der Spieler ist nicht im selben Clan.");
+            return failWithMessage("clan-kick-target-not-in-clan");
         }
 
         return CompletableFuture.completedFuture(target);
@@ -89,8 +89,8 @@ public class ClanKickSubCommand extends AuthorizedClanSubCommand {
     }
 
     private CompletionStage<ClanMember> validateRoleIsLower(ClanMember target, Boolean isTargetRoleHigher) {
-        if (!Boolean.TRUE.equals(isTargetRoleHigher)) {
-            return failWithMessage("du kannst kein mitglied mit höherer rolle kicken");
+        if (Boolean.TRUE.equals(isTargetRoleHigher)) {
+            return failWithMessage("clan-kick-target-role-higher");
         }
 
         return CompletableFuture.completedFuture(target);
@@ -100,14 +100,14 @@ public class ClanKickSubCommand extends AuthorizedClanSubCommand {
         return clanPermissionService.getPermissionByType(ClanPermissionType.KICK_MEMBER_BYPASS)
             .thenCompose(bypassPermission -> {
                 if (bypassPermission == null) {
-                    return failWithMessage("bypass-berechtigung existiert nicht");
+                    return failWithMessage("clan-permission-not-found");
                 }
 
                 return clanRolePermissionService.hasPermission(target.getRole(), bypassPermission.getId());
             })
             .thenCompose(hasBypassPermission -> {
                 if (Boolean.TRUE.equals(hasBypassPermission)) {
-                    return failWithMessage("du kannst den spieler nicht kicken");
+                    return failWithMessage("clan-kick-target-bypass");
                 }
 
                 return CompletableFuture.completedFuture(target);

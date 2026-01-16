@@ -11,7 +11,7 @@ import java.util.concurrent.CompletionStage;
  * @since 09.12.25
  */
 public interface ClanInvitationService {
-    CompletionStage<Void> sendInvitation(long clanId, long senderId, UUID receiver);
+    CompletionStage<Void> sendInvitation(long clanId, UUID sender, UUID receiver);
 
     CompletionStage<Void> acceptInvitation(long clanId, UUID player);
 

@@ -21,8 +21,8 @@ public class ClanInvitationServiceImpl implements ClanInvitationService {
     private final ClanMemberService clanMemberService;
 
     @Override
-    public CompletionStage<Void> sendInvitation(long clanId, long senderId, UUID receiver) {
-        return repository.insert(new ClanInvitationImpl(clanId, senderId, receiver, null))
+    public CompletionStage<Void> sendInvitation(long clanId, UUID sender, UUID receiver) {
+        return repository.insert(new ClanInvitationImpl(clanId, sender, receiver, null))
             .thenApply(_ -> null);
     }
 

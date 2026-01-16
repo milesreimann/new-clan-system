@@ -19,6 +19,7 @@ public class ClanLeaveSubCommand extends ClanSubCommand {
     private final ClanMemberService clanMemberService;
 
     public ClanLeaveSubCommand(ClanSystemPlugin plugin) {
+        super(plugin);
         clanService = plugin.getClanService();
         clanMemberService = plugin.getClanMemberService();
     }
@@ -26,7 +27,7 @@ public class ClanLeaveSubCommand extends ClanSubCommand {
     @Override
     public void execute(ProxiedPlayer player, String[] args) {
         if (args.length == 0 || !args[0].equalsIgnoreCase("confirm")) {
-            player.sendMessage("/clan leave confirm");
+            plugin.sendMessage(player, "clan-leave-confirm");
             return;
         }
 
@@ -46,7 +47,7 @@ public class ClanLeaveSubCommand extends ClanSubCommand {
         return clanMemberService.getMemberByUuid(playerUuid)
             .thenCompose(member -> {
                 if (member == null) {
-                    return failWithMessage("du bist nicht in einem clan");
+                    return failWithMessage("no-clan");
                 }
 
                 return CompletableFuture.completedFuture(member);
@@ -57,11 +58,11 @@ public class ClanLeaveSubCommand extends ClanSubCommand {
         return clanService.getClanById(member.getClan())
             .thenCompose(clan -> {
                 if (clan == null) {
-                    return failWithMessage("clan gibts nicht");
+                    return failWithMessage("clan-not-found");
                 }
 
                 if (playerUuid.equals(clan.getOwner())) {
-                    return failWithMessage("du bist der clan owner und kannst nicht verlassen");
+                    return failWithMessage("clan-leave-owner");
                 }
 
                 return CompletableFuture.completedFuture(member);
@@ -70,6 +71,6 @@ public class ClanLeaveSubCommand extends ClanSubCommand {
 
     private CompletionStage<Void> performLeave(ProxiedPlayer player, ClanMember member) {
         return clanMemberService.leaveClan(member)
-            .thenRun(() -> player.sendMessage("verlassen"));
+            .thenRun(() -> plugin.sendMessage(player, "clan-left"));
     }
 }

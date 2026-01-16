@@ -25,7 +25,7 @@ public class ClanInviteSubCommand extends AuthorizedClanSubCommand {
     @Override
     public void execute(ProxiedPlayer player, String[] args) {
         if (args.length == 0) {
-            // help
+            plugin.sendMessage(player, "clan-help-page-1");
             return;
         }
 
@@ -33,7 +33,7 @@ public class ClanInviteSubCommand extends AuthorizedClanSubCommand {
         try {
             targetUuid = UUID.fromString(args[0]);
         } catch (IllegalArgumentException e) {
-            player.sendMessage("ungültige uuid");
+            plugin.sendMessage(player, "invalid-uuid");
             return;
         }
 
@@ -48,7 +48,7 @@ public class ClanInviteSubCommand extends AuthorizedClanSubCommand {
 
     private CompletionStage<Void> validateAndSendInvite(ProxiedPlayer player, ClanMember executor, UUID targetUuid) {
         if (targetUuid.equals(executor.getUuid())) {
-            return failWithMessage("du kannst dich nicht selbst einladen");
+            return failWithMessage("clan-invite-self");
         }
 
         return validateTargetNotInClan(targetUuid)
@@ -59,7 +59,7 @@ public class ClanInviteSubCommand extends AuthorizedClanSubCommand {
         return clanMemberService.isInClan(targetUuid)
             .thenCompose(isInClan -> {
                 if (Boolean.TRUE.equals(isInClan)) {
-                    return failWithMessage("spieler ist bereits in einem clan");
+                    return failWithMessage("player-already-in-clkan");
                 }
 
                 return CompletableFuture.completedFuture(true);
@@ -67,7 +67,7 @@ public class ClanInviteSubCommand extends AuthorizedClanSubCommand {
     }
 
     private CompletionStage<Void> sendInvite(ProxiedPlayer player, ClanMember executor, UUID targetUuid) {
-        return clanInvitationService.sendInvitation(executor.getClan(), executor.getClan(), targetUuid)
-            .thenRun(() -> player.sendMessage("einladung versendet"));
+        return clanInvitationService.sendInvitation(executor.getClan(), executor.getUuid(), targetUuid)
+            .thenRun(() -> plugin.sendMessage(player, "clan-invitation-sent", targetUuid));
     }
 }

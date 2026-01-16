@@ -21,6 +21,7 @@ public class ClanJoinSubCommand extends ClanSubCommand {
     private final ClanMemberService clanMemberService;
 
     public ClanJoinSubCommand(ClanSystemPlugin plugin) {
+        super(plugin);
         clanInvitationService = plugin.getClanInvitationService();
         clanService = plugin.getClanService();
         clanMemberService = plugin.getClanMemberService();
@@ -29,7 +30,7 @@ public class ClanJoinSubCommand extends ClanSubCommand {
     @Override
     public void execute(ProxiedPlayer player, String[] args) {
         if (args.length == 0) {
-            // help
+            plugin.sendMessage(player, "clan-help-page-1");
             return;
         }
 
@@ -50,7 +51,7 @@ public class ClanJoinSubCommand extends ClanSubCommand {
         return clanMemberService.isInClan(playerUuid)
             .thenCompose(isInClan -> {
                 if (Boolean.TRUE.equals(isInClan)) {
-                    return failWithMessage("bereits in einem clan");
+                    return failWithMessage("already-in-clan");
                 }
 
                 return CompletableFuture.completedFuture(true);
@@ -61,7 +62,7 @@ public class ClanJoinSubCommand extends ClanSubCommand {
         return clanService.getClanByName(clanName)
             .thenCompose(clan -> {
                 if (clan == null) {
-                    return failWithMessage("clan gibts nicht");
+                    return failWithMessage("clan-not-found");
                 }
 
                 return CompletableFuture.completedFuture(clan);
@@ -72,7 +73,7 @@ public class ClanJoinSubCommand extends ClanSubCommand {
         return clanInvitationService.getInvitationByClanIdForPlayer(clan.getId(), playerUuid)
             .thenCompose(invitation -> {
                 if (invitation == null) {
-                    return failWithMessage("keine einladung erhalten");
+                    return failWithMessage("clan-invitation-not-found");
                 }
 
                 return CompletableFuture.completedFuture(clan);
@@ -81,6 +82,6 @@ public class ClanJoinSubCommand extends ClanSubCommand {
 
     private CompletionStage<Void> acceptInvitation(ProxiedPlayer player, Clan clan, UUID playerUuid) {
         return clanInvitationService.acceptInvitation(clan.getId(), playerUuid)
-            .thenRun(() -> player.sendMessage("einladung angenommen"));
+            .thenRun(() -> plugin.sendMessage(player, "clan-joined", clan.getName()));
     }
 }
